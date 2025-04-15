@@ -121,7 +121,7 @@ Leia nosso guia de contribuição para saber mais.
 
 ## 📝 **Licença** 📜
 
-Este projeto é licenciado sob a licença MIT. 🛡️  
+Este projeto é licenciado sob a Apache-2.0 license.🛡️  
 Veja o arquivo `LICENSE` para mais detalhes.  
 
 ---
