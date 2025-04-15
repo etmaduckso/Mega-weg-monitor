@@ -117,9 +117,9 @@ Leia nosso guia de contribuição para saber mais.
 
 ## 📝 **Licença** 📜
 
-Este projeto é licenciado sob a licença MIT. 🛡️  
+Este projeto é licenciado sob a licença Apache-2.0 license.🛡️  
 Veja o arquivo `LICENSE` para mais detalhes.  
 
 ---
 
-Espero que goste desta versão cheia de emojis! 🌟 Se precisar de mais ajustes, é só avisar! 😊
+Espero que goste desta versão de Monitor e alerta para telegram! 🌟 Se precisar de mais ajustes fique avontade, aproveita e me segue ai e se precisar de ajuda é só avisar! 😊
