@@ -1,0 +1,36 @@
+# Ignorar arquivos de configuração sensíveis
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+
+# Virtualenv
+venv/
+ENV/
+
+# IDEs
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Arquivos de sistema
+.DS_Store
+Thumbs.db
+
+# Arquivos de distribuição
+dist/
+build/
+*.egg-info/
+
+# Arquivos de teste e cobertura
+.coverage
+htmlcov/
+
+# Arquivos temporários
+*.tmp
+*.bak
+*.swp
