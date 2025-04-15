@@ -388,7 +388,7 @@ git push origin v1.1.0
 
 ## 📝 Licença
 
-Este projeto é licenciado sob a licença MIT - veja o arquivo LICENSE para mais detalhes.
+Este projeto é licenciado sob a Apache-2.0 license - veja o arquivo LICENSE para mais detalhes.
 
 ## 🤝 Contribuições
 
