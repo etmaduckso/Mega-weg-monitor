@@ -18,18 +18,6 @@ Sistema profissional para monitoramento de e-mails IMAP e envio de notificaçõe
   - Mecanismo de retry para garantir entrega mesmo com falhas de conectividade
   - Integração com RocketChat para ambientes corporativos
 
-- **Arquitetura Profissional**:
-  - Código modular e seguindo princípios clean code
-  - Logging estruturado e detalhado
-  - Preparado para deploy em ambientes de produção
-  - Gestão de configuração centralizada
-
-- **CI/CD e Controle de Versão**:
-  - Integração contínua com GitHub Actions
-  - Testes automatizados e linting
-  - Construção e teste de imagens Docker automatizados
-  - Versionamento semântico com arquivo VERSION
-
 ## 📋 Pré-requisitos
 
 - Python 3.9+
@@ -430,12 +418,12 @@ Este projeto utiliza unittest para testes unitários e de integração. Para exe
    ```
 
 2. Execute os testes unitários:
-   ```
+   ```bash
    python -m unittest discover tests/unit
    ```
 
 3. Execute os testes de integração:
-   ```
+   ```bash
    python -m unittest discover tests/integration
    ```
 
