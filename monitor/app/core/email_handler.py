@@ -5,6 +5,7 @@ import logging
 from email.header import decode_header
 from app.config.settings import IMAP_CONFIG, setup_logging
 from app.core.telegram_client import TelegramClient  # Import TelegramClient
+from .notification_client import NotificationClient
 
 # Configura o logger para este módulo
 logger = logging.getLogger('wegnots.email_handler')
@@ -18,11 +19,12 @@ class EmailHandler:
     ou no servidor de e-mail.
     """
     
-    def __init__(self):
+    def __init__(self, notification_clients: list[NotificationClient]):
         """
         Inicializa o handler de e-mail com as configurações do IMAP.
         Não estabelece conexão no construtor para permitir tratamento de erros
         mais controlado no método connect().
+        Adiciona suporte a múltiplos clientes de notificação.
         """
         self.mail = None
         self.username = IMAP_CONFIG['username']
@@ -35,6 +37,7 @@ class EmailHandler:
         self.connected = False
         self.processed_email_ids = set()  # Set to keep track of processed email IDs
         self.telegram_client = None
+        self.notification_clients = notification_clients
         logger.debug(f"EmailHandler inicializado para servidor {self.server}:{self.port}")
 
     def _create_connection(self):
@@ -56,61 +59,51 @@ class EmailHandler:
         """
         Conecta ao servidor IMAP com estratégia de reconexão automática.
         
-        Implementa backoff exponencial para evitar sobrecarga do servidor em
-        caso de falhas repetidas. O número de tentativas e intervalo entre elas
-        é configurável.
-        
         Returns:
             bool: True se a conexão foi estabelecida com sucesso, False caso contrário
         """
         if self.connected and self.mail:
-            logger.debug("Já conectado ao servidor IMAP")
-            return True
-            
+            try:
+                # Verify if connection is still alive
+                status, _ = self.mail.noop()
+                if status == 'OK':
+                    return True
+            except:
+                self.connected = False
+                self.mail = None
+                
         attempt = 0
         current_delay = self.reconnect_delay
         
         while attempt < self.reconnect_attempts:
             try:
-                # Cria uma nova conexão se não existir
+                # Create a new connection if needed
                 if not self.mail:
                     self.mail = self._create_connection()
                 
-                # Tenta autenticar
+                # Try to authenticate
                 logger.info(f"Tentativa {attempt+1}/{self.reconnect_attempts} de login no IMAP")
                 status, response = self.mail.login(self.username, self.password)
                 
-                if status == 'OK':
-                    logger.info("Login IMAP bem-sucedido")
-                    self.mail.select('INBOX')
-                    self.connected = True
-                    # Inicializa o cliente Telegram após conexão bem-sucedida
-                    if not self.telegram_client:
-                        try:
-                            self.telegram_client = TelegramClient()
-                            logger.info("Cliente Telegram inicializado no EmailHandler")
-                        except Exception as e:
-                            logger.error(f"Erro ao inicializar cliente Telegram no EmailHandler: {e}")
-                    return True
-                else:
+                if status != 'OK':
                     logger.warning(f"Falha na autenticação IMAP: {response}")
-                    self.connected = False  # Garantir que a conexão seja marcada como desconectada
-                    return False  # Garantir que retorne False em caso de falha de autenticação
-            except imaplib.IMAP4.abort as e:
-                logger.error(f"Conexão IMAP abortada: {e}")
-                self.mail = None  # Reset da conexão
-            except imaplib.IMAP4.error as e:
-                logger.error(f"Erro IMAP: {e}")
+                    self.connected = False
+                    return False
+                    
+                logger.info("Login IMAP bem-sucedido")
+                self.mail.select('INBOX')
+                self.connected = True
+                return True
+                    
             except Exception as e:
-                logger.error(f"Erro inesperado na conexão IMAP: {e}")
-                self.mail = None  # Reset da conexão em caso de erro inesperado
-            
-            # Prepara próxima tentativa
+                logger.error(f"Erro na conexão IMAP: {e}")
+                self.mail = None
+                
             attempt += 1
             if attempt < self.reconnect_attempts:
-                logger.info(f"Aguardando {current_delay}s antes da próxima tentativa de conexão")
+                logger.info(f"Aguardando {current_delay}s antes da próxima tentativa")
                 time.sleep(current_delay)
-                current_delay *= self.backoff_factor  # Backoff exponencial
+                current_delay *= self.backoff_factor
         
         self.connected = False
         logger.critical(f"Todas as {self.reconnect_attempts} tentativas de conexão IMAP falharam!")
@@ -163,30 +156,8 @@ class EmailHandler:
                         msg = self.parse_email(email_id)
                         if msg:
                             email_data = self.extract_email_data(msg)
-                            # Send notification to Telegram with retry logic
-                            if self.telegram_client:
-                                for attempt in range(IMAP_CONFIG.get('retry_attempts', 3)):
-                                    try:
-                                        sent = self.telegram_client.send_alert(
-                                            "WEG-MONITOR-001",
-                                            3,
-                                            "Sistema WegNots",
-                                            {
-                                                'subject': email_data['subject'],
-                                                'from': email_data['from'],
-                                                'date': email_data['date']
-                                            }
-                                        )
-                                        if sent:
-                                            logger.info(f"Notificação Telegram enviada para e-mail {email_id.decode()}")
-                                            break
-                                        else:
-                                            logger.warning(f"Falha ao enviar notificação Telegram para e-mail {email_id.decode()}, tentativa {attempt+1}")
-                                    except Exception as e:
-                                        logger.error(f"Erro ao enviar notificação Telegram para e-mail {email_id.decode()}: {e}")
-                                    time.sleep(IMAP_CONFIG.get('retry_delay', 5))
-                            else:
-                                logger.warning("Cliente Telegram não inicializado, não foi possível enviar notificação")
+                            # Send notification to all clients
+                            self.notify_clients(email_data)
                             self.processed_email_ids.add(email_id.decode())
                             logger.debug(f"E-mail {email_id.decode()} marcado como processado")
                 return new_email_ids
@@ -197,6 +168,21 @@ class EmailHandler:
             self.connected = False  # Marca como desconectado para forçar reconexão
         
         return []
+
+    def notify_clients(self, email_data):
+        """
+        Envia notificações para todos os clientes configurados.
+        """
+        for client in self.notification_clients:
+            try:
+                client.send_alert(
+                    equipment_id="WEG-MONITOR-001",
+                    alert_type=3,  # Exemplo de alerta leve
+                    user="Sistema WegNots",
+                    extra_info=email_data
+                )
+            except Exception as e:
+                logger.error(f"Erro ao notificar cliente {client.__class__.__name__}: {e}")
 
     def parse_email(self, email_id):
         """

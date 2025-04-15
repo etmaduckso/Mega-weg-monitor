@@ -212,8 +212,8 @@ def main():
         send_system_notification(notification_clients, 
                                 "🚀 *Sistema WegNots iniciado*\nMonitoramento de e-mails ativo.")
         
-        # Inicializa o manipulador de e-mails
-        email_handler = EmailHandler()
+        # Inicializa o manipulador de e-mails com os clientes de notificação
+        email_handler = EmailHandler(notification_clients=notification_clients)
         
         # Tenta conectar ao servidor IMAP
         if not email_handler.connect():

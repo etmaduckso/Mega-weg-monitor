@@ -5,7 +5,8 @@ from app.core.telegram_client import TelegramClient
 
 class TestEmailTelegramIntegration(unittest.TestCase):
     def setUp(self):
-        self.email_handler = EmailHandler()
+        self.mock_telegram_client = MagicMock(spec=TelegramClient)
+        self.email_handler = EmailHandler(notification_clients=[self.mock_telegram_client])
         self.telegram_client = TelegramClient()
 
     @patch('app.core.email_handler.EmailHandler.check_new_emails')

@@ -48,3 +48,38 @@
 2025-04-15 00:05:43,349 - wegnots - INFO - Conexão IMAP encerrada com sucesso
 2025-04-15 00:05:44,516 - wegnots - INFO - Notificações de encerramento enviadas
 2025-04-15 00:05:44,517 - wegnots - INFO - Sistema encerrado com sucesso
+2025-04-15 00:26:46,846 - wegnots - INFO - ============================================================
+2025-04-15 00:26:46,846 - wegnots - INFO - Iniciando WegNots Monitor v1.1.0 em 2025-04-15 00:26:46.846335
+2025-04-15 00:26:46,846 - wegnots - INFO - ============================================================
+2025-04-15 00:26:46,846 - wegnots - INFO - Cliente Telegram inicializado com sucesso
+2025-04-15 00:26:48,246 - wegnots - CRITICAL - Erro fatal no sistema: EmailHandler.__init__() missing 1 required positional argument: 'notification_clients'
+Traceback (most recent call last):
+  File "C:\Users\User\Documents\G.EDUCA\WegNots\monitor\main.py", line 216, in main
+    email_handler = EmailHandler()
+TypeError: EmailHandler.__init__() missing 1 required positional argument: 'notification_clients'
+2025-04-15 00:26:49,477 - wegnots - INFO - Encerrando serviços...
+2025-04-15 00:26:50,836 - wegnots - INFO - Notificações de encerramento enviadas
+2025-04-15 00:27:49,428 - wegnots - INFO - ============================================================
+2025-04-15 00:27:49,429 - wegnots - INFO - Iniciando WegNots Monitor v1.1.0 em 2025-04-15 00:27:49.429180
+2025-04-15 00:27:49,429 - wegnots - INFO - ============================================================
+2025-04-15 00:27:49,429 - wegnots - INFO - Cliente Telegram inicializado com sucesso
+2025-04-15 00:27:50,829 - wegnots - CRITICAL - Erro fatal no sistema: EmailHandler.__init__() missing 1 required positional argument: 'notification_clients'
+Traceback (most recent call last):
+  File "C:\Users\User\Documents\G.EDUCA\WegNots\monitor\main.py", line 216, in main
+    email_handler = EmailHandler()
+TypeError: EmailHandler.__init__() missing 1 required positional argument: 'notification_clients'
+2025-04-15 00:27:52,014 - wegnots - INFO - Encerrando serviços...
+2025-04-15 00:27:53,192 - wegnots - INFO - Notificações de encerramento enviadas
+2025-04-15 00:29:58,664 - wegnots - INFO - ============================================================
+2025-04-15 00:29:58,665 - wegnots - INFO - Iniciando WegNots Monitor v1.1.0 em 2025-04-15 00:29:58.665155
+2025-04-15 00:29:58,665 - wegnots - INFO - ============================================================
+2025-04-15 00:29:58,665 - wegnots - INFO - Cliente Telegram inicializado com sucesso
+2025-04-15 00:30:00,621 - wegnots.email_handler - INFO - Tentativa 1/5 de login no IMAP
+2025-04-15 00:30:00,789 - wegnots.email_handler - INFO - Login IMAP bem-sucedido
+2025-04-15 00:30:00,974 - wegnots - INFO - Conexões estabelecidas. Monitoramento ativo.
+2025-04-15 00:30:25,504 - wegnots - INFO - Sinal de encerramento recebido. Encerrando monitoramento...
+2025-04-15 00:30:26,285 - wegnots - INFO - Encerrando serviços...
+2025-04-15 00:30:26,585 - wegnots.email_handler - INFO - Logout IMAP realizado com sucesso
+2025-04-15 00:30:26,586 - wegnots - INFO - Conexão IMAP encerrada com sucesso
+2025-04-15 00:30:27,840 - wegnots - INFO - Notificações de encerramento enviadas
+2025-04-15 00:30:27,840 - wegnots - INFO - Sistema encerrado com sucesso

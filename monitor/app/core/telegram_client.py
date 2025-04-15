@@ -2,11 +2,12 @@ import requests
 import logging
 import time
 from app.config.settings import TELEGRAM_CONFIG
+from .notification_client import NotificationClient
 
 # Configura o logger para este módulo
 logger = logging.getLogger('wegnots.telegram_client')
 
-class TelegramClient:
+class TelegramClient(NotificationClient):
     """
     Cliente para envio de alertas via Telegram.
     
