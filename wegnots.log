@@ -34,3 +34,17 @@
 2025-04-14 23:52:45,203 - wegnots - INFO - Conexão IMAP encerrada com sucesso
 2025-04-14 23:52:46,381 - wegnots - INFO - Notificações de encerramento enviadas
 2025-04-14 23:52:46,382 - wegnots - INFO - Sistema encerrado com sucesso
+2025-04-15 00:05:38,484 - wegnots - INFO - ============================================================
+2025-04-15 00:05:38,485 - wegnots - INFO - Iniciando WegNots Monitor v1.1.0 em 2025-04-15 00:05:38.485263
+2025-04-15 00:05:38,485 - wegnots - INFO - ============================================================
+2025-04-15 00:05:38,485 - wegnots - INFO - Cliente Telegram inicializado com sucesso
+2025-04-15 00:05:40,407 - wegnots.email_handler - INFO - Tentativa 1/5 de login no IMAP
+2025-04-15 00:05:40,574 - wegnots.email_handler - INFO - Login IMAP bem-sucedido
+2025-04-15 00:05:40,755 - wegnots.email_handler - INFO - Cliente Telegram inicializado no EmailHandler
+2025-04-15 00:05:40,755 - wegnots - INFO - Conexões estabelecidas. Monitoramento ativo.
+2025-04-15 00:05:43,024 - wegnots - INFO - Sinal de encerramento recebido. Encerrando monitoramento...
+2025-04-15 00:05:43,052 - wegnots - INFO - Encerrando serviços...
+2025-04-15 00:05:43,348 - wegnots.email_handler - INFO - Logout IMAP realizado com sucesso
+2025-04-15 00:05:43,349 - wegnots - INFO - Conexão IMAP encerrada com sucesso
+2025-04-15 00:05:44,516 - wegnots - INFO - Notificações de encerramento enviadas
+2025-04-15 00:05:44,517 - wegnots - INFO - Sistema encerrado com sucesso
