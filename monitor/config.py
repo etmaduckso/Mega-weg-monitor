@@ -12,9 +12,16 @@ ou arquivo .env para evitar commits de credenciais.
 # Configurações Telegram
 TELEGRAM_CONFIG = {
     'bot_token': '8002419840:AAFL_Wu0aZ_NOGS9LOo9a9HxRbdGMxxv6-E',  # Token obtido do BotFather
-    'chat_id': '1395823978',                                        # ID do chat para notificações
-    'retry_attempts': 3,                                            # Número de tentativas para envio de mensagens
-    'retry_delay': 5                                                # Intervalo entre tentativas em segundos
+    'default_chat_id': '1395823978',                               # Chat ID padrão para notificações gerais
+    'retry_attempts': 5,                                           # Número de tentativas aumentado
+    'retry_delay': 15,                                            # Delay entre tentativas aumentado
+    'route_mapping': {
+        'sooretama@megasec.com.br': ['1395823978'],              # Roteamento principal
+        '*@megasec.com.br': ['1395823978'],                      # Qualquer email do domínio
+    },
+    'groups': {
+        'suporte_ti': ['1395823978']                             # Grupo de suporte
+    }
 }
 
 # Configurações IMAP

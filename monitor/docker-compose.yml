@@ -1,36 +1,12 @@
-version: '3'
-
-volumes:
-  mongodb_data: { driver: local }
+version: '3.8'
 
 services:
-  rocketchat:
-    image: registry.rocket.chat/rocketchat/rocket.chat:latest
-    restart: unless-stopped
-    volumes:
-      - ./uploads:/app/uploads
-    environment:
-      - PORT=3000
-      - ROOT_URL=http://localhost:3000
-      - MONGO_URL=mongodb://mongo:27017/rocketchat?replicaSet=rs0
-      - MONGO_OPLOG_URL=mongodb://mongo:27017/local?replicaSet=rs0
-      - DEPLOY_METHOD=docker
-    depends_on:
-      - mongo
+  mongodb:
+    image: mongo:latest
     ports:
-      - 3000:3000
-
-  mongo:
-    image: docker.io/bitnami/mongodb:6.0
-    restart: unless-stopped
+      - "27017:27017"
     volumes:
-      - ./data/db:/bitnami/mongodb
+      - ./data/db:/data/db
     environment:
-      MONGODB_REPLICA_SET_MODE: primary
-      MONGODB_REPLICA_SET_NAME: rs0
-      MONGODB_PORT_NUMBER: 27017
-      MONGODB_INITIAL_PRIMARY_HOST: mongo
-      MONGODB_INITIAL_PRIMARY_PORT_NUMBER: 27017
-      MONGODB_ADVERTISED_HOSTNAME: mongo
-      MONGODB_ENABLE_JOURNAL: true
-      ALLOW_EMPTY_PASSWORD: yes
+      - MONGODB_DATABASE=wegnots
+    restart: always

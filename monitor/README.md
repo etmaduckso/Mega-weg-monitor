@@ -12,11 +12,29 @@ Sistema profissional para monitoramento de e-mails IMAP e envio de notificaçõe
   - Reconexão automática com backoff exponencial
   - Tratamento refinado de falhas temporárias
 
-- **Notificações via Telegram e RocketChat**:
+- **Sistema de Múltiplos Usuários**:
+  - Suporte para múltiplos destinatários de notificações
+  - Gerenciamento individual de preferências de notificação
+  - Sistema de horários silenciosos configurável
+  - Regras personalizadas por remetente
+
+- **Notificações Inteligentes**:
   - Formatação rica de mensagens com Markdown
   - Suporte a emojis para melhor visualização
-  - Mecanismo de retry para garantir entrega mesmo com falhas de conectividade
+  - Mecanismo de retry para garantir entrega
+  - Categorização automática de alertas (Crítico, Moderado, Leve)
+  - Preferências individuais por tipo de alerta
+  - Regras de roteamento baseadas no remetente
+
+- **Notificações via Telegram e RocketChat**:
+  - Bot interativo com comando /start para obtenção do chat_id
+  - Mensagens de boas-vindas automáticas
+  - Sistema de retry com backoff exponencial
+  - Suporte a múltiplos canais de notificação
   - Integração com RocketChat para ambientes corporativos
+  - Suporte a múltiplos canais
+  - Formatação avançada de mensagens
+  - Integração via API REST e Webhooks
 
 ## 📋 Pré-requisitos
 
@@ -85,6 +103,59 @@ ROCKETCHAT_WEBHOOK_URL=http://localhost:3000/hooks/seu-webhook-token
 ```
 
 Para mais detalhes sobre a configuração do RocketChat, consulte a documentação em `docs/ROCKET_CHAT_INTEGRATION.md`.
+
+### Configuração do Bot do Telegram
+
+1. Crie um bot no Telegram através do [@BotFather](https://t.me/BotFather)
+2. Anote o token do bot fornecido
+3. Inicie uma conversa com seu bot
+4. Use o comando `/start` para obter seu chat_id
+5. Configure o token e chat_id no sistema
+
+### Cadastro Interativo via Telegram
+
+O sistema oferece um processo de cadastro simplificado e interativo através do bot do Telegram:
+
+1. **Iniciando o Cadastro**:
+   - Inicie uma conversa com o bot do Telegram
+   - Use o comando `/start` para começar o processo de cadastro
+   - Se já estiver cadastrado, o bot informará que você já está ativo
+
+2. **Processo de Cadastro**:
+   - O bot solicitará seu nome completo
+   - Em seguida, solicitará seu e-mail corporativo
+   - O chat_id é capturado automaticamente
+   - Para cancelar o processo a qualquer momento, use `/cancel`
+
+3. **Confirmação**:
+   - Após fornecer as informações, o bot confirmará seu cadastro
+   - Você receberá uma mensagem com seus dados registrados
+   - As notificações começarão automaticamente
+
+4. **Configurações Iniciais**:
+   - Por padrão, você receberá todos os tipos de alertas
+   - As preferências podem ser ajustadas posteriormente
+   - Configurações disponíveis:
+     - Tipos de alerta (crítico, moderado, leve)
+     - Horário silencioso
+     - Regras por remetente
+
+### Configurações de Notificação
+
+Cada usuário pode personalizar suas notificações:
+
+1. **Tipos de Alerta**:
+   - Alertas Críticos (prioridade 1)
+   - Alertas Moderados (prioridade 2)
+   - Alertas Leves (prioridade 3)
+
+2. **Horário Silencioso**:
+   - Definir período sem notificações
+   - Formato HH:MM para início e fim
+
+3. **Regras por Remetente**:
+   - Ativar/desativar notificações por remetente específico
+   - Suporte a wildcards para domínios
 
 ### Testes de Conexão
 
@@ -290,6 +361,30 @@ O sistema categoriza os e-mails em três níveis de alerta baseados no assunto:
 - **Alerta Crítico (1)**: Identificado por palavras como "urgente", "crítico", "emergência"
 - **Alerta Moderado (2)**: Identificado por palavras como "importante", "atenção"
 - **Alerta Leve (3)**: Demais e-mails sem palavras-chave específicas
+
+### Sistema de Notificações
+
+O sistema implementa uma lógica avançada de notificações:
+
+1. **Categorização Inteligente**:
+   - Análise do assunto para determinar prioridade
+   - Palavras-chave configuráveis
+   - Suporte a expressões regulares
+
+2. **Preferências do Usuário**:
+   - Controle granular por tipo de alerta
+   - Horários silenciosos personalizados
+   - Regras específicas por remetente
+
+3. **Garantia de Entrega**:
+   - Sistema de retry com backoff exponencial
+   - Tratamento de rate limits
+   - Confirmação de entrega
+
+4. **Personalização**:
+   - Templates de mensagem customizáveis
+   - Suporte a markdown e emojis
+   - Formatação rica de conteúdo
 
 ### Reconexão Inteligente
 

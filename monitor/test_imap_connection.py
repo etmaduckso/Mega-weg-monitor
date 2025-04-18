@@ -1,22 +1,32 @@
 import imaplib
-import os
-from dotenv import load_dotenv
+import logging
 
-# Carregar variáveis de ambiente
-load_dotenv()
+# Configurações IMAP
+IMAP_SERVER = 'imap.titan.email'
+IMAP_PORT = 993
+IMAP_USER = 'sooretama@megasec.com.br'
+IMAP_PASSWORD = 'Megasec@2025'
 
-IMAP_SERVER = os.getenv('IMAP_SERVER')
-IMAP_USER = os.getenv('IMAP_USER')
-IMAP_PASSWORD = os.getenv('IMAP_PASSWORD')
+# Configura o logger
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger('test_imap_connection')
 
 def test_imap_connection():
     try:
-        mail = imaplib.IMAP4_SSL(IMAP_SERVER)
-        mail.login(IMAP_USER, IMAP_PASSWORD)
-        print("Conexão IMAP bem-sucedida!")
+        logger.debug(f"Tentando conectar ao servidor IMAP {IMAP_SERVER}:{IMAP_PORT}")
+        mail = imaplib.IMAP4_SSL(IMAP_SERVER, IMAP_PORT)
+        logger.debug("Conexão IMAP estabelecida com sucesso.")
+        
+        # Tentar login
+        status, response = mail.login(IMAP_USER, IMAP_PASSWORD)
+        if status == 'OK':
+            logger.info("Login IMAP bem-sucedido.")
+        else:
+            logger.error(f"Falha na autenticação IMAP: {response}")
+        
         mail.logout()
     except Exception as e:
-        print(f"Erro ao conectar ao IMAP: {e}")
+        logger.error(f"Erro ao conectar ao IMAP: {e}")
 
 if __name__ == "__main__":
     test_imap_connection()
