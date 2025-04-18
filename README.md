@@ -9,7 +9,7 @@
 
 ![Última Atualização](https://img.shields.io/badge/última_atualização-Abril_2025-informational)
 
-Sistema profissional para monitoramento de e-mails IMAP e envio de notificações via Telegram, desenvolvido com foco em robustez, escalabilidade e seguindo boas práticas de desenvolvimento.
+Sistema eficiente para monitoramento de e-mails IMAP e envio de notificações via Telegram, desenvolvido com foco em robustez, escalabilidade e seguindo boas práticas de desenvolvimento.
 
 ---
 
