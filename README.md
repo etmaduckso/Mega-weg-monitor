@@ -10,7 +10,7 @@
 
 ![Última Atualização](https://img.shields.io/badge/última_atualização-Abril_2025-informational)
 
-Sistema eficiente para monitoramento de e-mails IMAP e envio de notificações via Telegram, desenvolvido com foco em robustez, escalabilidade e seguindo boas práticas de desenvolvimento.
+Sistema profissional para monitoramento de e-mails IMAP e envio de notificações via Telegram, desenvolvido com foco em robustez, escalabilidade e seguindo boas práticas de desenvolvimento.
 
 ---
 
@@ -28,11 +28,13 @@ Sistema eficiente para monitoramento de e-mails IMAP e envio de notificações v
 - **Decodificação Robusta**: Tratamento avançado de caracteres especiais
 - **Formatação Rica**: Mensagens Telegram com Markdown e emojis
 - **Sistema de Retry**: Reconexão inteligente com backoff exponencial
+- **Gerenciador de Configuração**: Interface intuitiva para gerenciar contas de e-mail
 
 ### 🔐 Configuração Simplificada
 - **config.ini**: Arquivo de configuração intuitivo e organizado
 - **Docker Ready**: Ambiente completo com um único comando
 - **Volumes Persistentes**: Dados preservados entre reinicializações
+- **Utilitário config_manager.py**: Ferramenta interativa para gerenciar configurações
 
 ---
 
@@ -42,9 +44,10 @@ Sistema eficiente para monitoramento de e-mails IMAP e envio de notificações v
 - Conexão segura via SSL/TLS
 - Reconexão automática com backoff exponencial
 - Tratamento refinado de falhas temporárias
+- Suporte a múltiplos servidores IMAP (Gmail, Outlook, Yahoo, etc.)
 
 ### 📲 **Notificações Multicanal**:
-- Formatação rica de mensagens com Markdown
+- Formatação rica de mensagens com Markdown V2
 - Suporte a emojis para melhor visualização
 - Sistema de retry avançado com backoff exponencial
 - Tratamento robusto de erros de rede (incluindo 502 Bad Gateway)
@@ -155,12 +158,21 @@ Isso iniciará automaticamente o backend, frontend e MongoDB em containers separ
 - Certifique-se de que sua conta de e-mail tem IMAP habilitado
 - Para Gmail, você precisa ativar o "Acesso a app menos seguro" ou usar senhas de app
 
-**3. Configure o arquivo config.ini**
-- Edite o arquivo `monitor/config.ini` com as seguintes configurações:
+**3. Configure suas contas usando o Gerenciador de Configuração**
+```bash
+cd monitor
+python config_manager.py
+```
+Este utilitário interativo permite:
+- Adicionar contas de e-mail para monitoramento
+- Configurar o token e chat_id do Telegram
+- Editar configurações existentes
+- Remover contas de monitoramento
 
+Alternativamente, você pode editar manualmente o arquivo `config.ini`:
 ```ini
 [IMAP_PRIMARY]
-server = seu.servidor.imap.com
+server = mail.seu-servidor.com
 port = 993
 username = seu@email.com
 password = sua_senha
@@ -225,6 +237,7 @@ npm run dev
 - Confirme que as credenciais estão corretas
 - Verifique se o IMAP está habilitado na sua conta de e-mail
 - Para Gmail, verifique as configurações de segurança
+- Verifique se o servidor IMAP está correto (ex: mail.megasec.com.br para contas Megasec)
 
 ### Problema: O frontend não inicia
 - Verifique se Node.js está instalado corretamente
@@ -246,6 +259,7 @@ wegnots/
 ├── README.md              # Documentação principal
 ├── monitor/               # Backend Python
 │   ├── simple_monitor.py  # Script principal de monitoramento
+│   ├── config_manager.py  # Utilitário para gerenciar configurações
 │   ├── config.ini         # Arquivo de configuração
 │   ├── docker-compose.yml # Configuração Docker do monitor
 │   ├── requirements.txt   # Dependências Python
@@ -280,6 +294,16 @@ A interface administrativa oferece:
 - **Visão Geral**: Status dos serviços e estatísticas
 - **Logs**: Visualização de eventos e alertas recentes
 - **Configurações**: Ajustes do sistema e preferências
+
+### 🔧 Gerenciador de Configuração
+
+O utilitário `config_manager.py` oferece uma interface de linha de comando para:
+
+- Listar todas as contas de e-mail monitoradas
+- Adicionar novas contas com detecção automática de servidor
+- Editar configurações existentes
+- Remover contas do monitoramento
+- Configurar o Telegram (token e chat_id)
 
 ---
 

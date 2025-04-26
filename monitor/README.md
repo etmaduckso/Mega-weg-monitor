@@ -15,9 +15,10 @@ Sistema profissional para monitoramento de e-mails IMAP e envio de notificaçõe
 - **Múltiplas Contas IMAP**:
   - Suporte para monitorar várias contas simultaneamente
   - Ativação/desativação por configuração
+  - Detecção automática de servidores para diferentes provedores
 
 - **Notificações Inteligentes**:
-  - Formatação rica de mensagens com Markdown
+  - Formatação rica de mensagens com Markdown V2
   - Suporte a emojis para melhor visualização
   - Decodificação inteligente de cabeçalhos de email
 
@@ -25,6 +26,12 @@ Sistema profissional para monitoramento de e-mails IMAP e envio de notificaçõe
   - Formatação avançada de mensagens com Markdown V2
   - Sistema de tratamento de erro para garantir entrega
   - Suporte a emojis para melhor visualização
+
+- **Gerenciador de Configuração**:
+  - Interface interativa de linha de comando
+  - Adição/edição/remoção de contas
+  - Configuração simplificada do Telegram
+  - Validação de conexões e credenciais
 
 ## 📋 Pré-requisitos
 
@@ -35,15 +42,30 @@ Sistema profissional para monitoramento de e-mails IMAP e envio de notificaçõe
 
 ## 🛠 Configuração
 
+### Usando o Gerenciador de Configuração
+
+A maneira mais fácil de configurar o sistema é usando o gerenciador de configuração interativo:
+
+```bash
+python config_manager.py
+```
+
+Este utilitário oferece um menu interativo para:
+- Listar todos os e-mails monitorados
+- Adicionar novo e-mail para monitoramento
+- Remover e-mail do monitoramento
+- Editar configurações de e-mail existente
+- Configurar o Telegram (token e chat_id)
+
 ### Configuração Manual
 
-A configuração do sistema é feita através do arquivo `config.ini`:
+A configuração do sistema também pode ser feita manualmente através do arquivo `config.ini`:
 
 ```ini
 [IMAP_PRIMARY]
-server = imap.titan.email
+server = mail.megasec.com.br
 port = 993
-username = seu@email.com
+username = seu@megasec.com.br
 password = sua_senha
 is_active = true
 
@@ -59,10 +81,20 @@ token = seu_token_do_bot
 chat_id = seu_chat_id
 ```
 
+### Servidores IMAP Suportados
+
+O sistema detecta automaticamente o servidor IMAP com base no domínio do e-mail. Servidores suportados incluem:
+
+- **mail.megasec.com.br** - Para contas @megasec.com.br
+- **imap.gmail.com** - Para contas @gmail.com
+- **outlook.office365.com** - Para contas @outlook.com ou @hotmail.com
+- **imap.mail.yahoo.com** - Para contas @yahoo.com
+
 ### Múltiplas Contas
 
 O sistema suporta monitoramento de múltiplas contas simultaneamente:
-- Use seções `IMAP_*` para cada conta
+- Use seções `IMAP_PRIMARY` e `IMAP_SECONDARY` para as duas contas principais
+- Para contas adicionais, use o formato `IMAP_email@domain.com`
 - Configure `is_active = true/false` para habilitar/desabilitar contas
 - Cada conta é monitorada independentemente
 
@@ -90,7 +122,7 @@ As mensagens são formatadas usando Markdown V2:
    - Envie uma mensagem para o seu bot
    - Acesse: `https://api.telegram.org/bot<SEU_TOKEN>/getUpdates`
    - Procure o valor do campo "chat_id" na resposta JSON
-5. Configure o token e chat_id no arquivo config.ini
+5. Configure o token e chat_id no arquivo config.ini ou use o `config_manager.py`
 
 ### Testando a Configuração do Telegram
 
@@ -128,6 +160,7 @@ docker-compose up -d
 ```
 monitor/
 ├── simple_monitor.py      # Script principal de monitoramento
+├── config_manager.py      # Gerenciador de configuração interativo
 ├── config.ini             # Arquivo de configuração
 ├── docker-compose.yml     # Configuração Docker
 ├── Dockerfile             # Definição da imagem Docker
@@ -187,7 +220,10 @@ Os logs são salvos em:
 
 **Problemas de Conexão IMAP**
 - Verifique suas credenciais no arquivo de configuração
-- Confirme se o servidor IMAP está acessível
+- Confirme se o servidor IMAP está acessível e correto
+  - Para Megasec: `mail.megasec.com.br` (não use endereços IP)
+  - Para Gmail: `imap.gmail.com`
+- Verifique se o IMAP está habilitado na sua conta
 - Verifique configurações de firewall e proxy
 
 **Problemas com Telegram**

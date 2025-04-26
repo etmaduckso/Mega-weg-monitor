@@ -3,13 +3,27 @@ import os
 import json
 import imaplib
 import configparser
-from typing import Dict, Optional
+import re
+import logging
+from typing import Dict, Optional, List, Tuple
+
+# Configurar logging
+os.makedirs('logs', exist_ok=True)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('logs/config_manager.log'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
 
 # Configuração dos servidores IMAP disponíveis
 IMAP_SERVERS = {
     'megasec': {
         'name': 'Megasec Email',
-        'server': '3.209.234.72',
+        'server': 'mail.megasec.com.br',  # Corrigido para o servidor correto conforme documentação
         'port': 993,
         'domain': 'megasec.com.br',
         'instructions': 'Use seu email @megasec.com.br e senha normal'
@@ -23,6 +37,23 @@ IMAP_SERVERS = {
 1. Ativar verificação em 2 etapas
 2. Criar uma Senha de App em: https://myaccount.google.com/security
 3. Usar a Senha de App gerada (não sua senha normal)'''
+    },
+    'outlook': {
+        'name': 'Outlook/Hotmail',
+        'server': 'outlook.office365.com',
+        'port': 993,
+        'domain': 'outlook.com',
+        'instructions': 'Use seu email Outlook/Hotmail e senha normal'
+    },
+    'yahoo': {
+        'name': 'Yahoo Mail',
+        'server': 'imap.mail.yahoo.com',
+        'port': 993,
+        'domain': 'yahoo.com',
+        'instructions': '''Para Yahoo Mail, você precisa:
+1. Ativar verificação em 2 etapas
+2. Gerar uma senha de app
+3. Usar a senha de app gerada (não sua senha normal)'''
     }
 }
 
@@ -34,16 +65,31 @@ def detect_server_from_email(email: str) -> Optional[Dict]:
             return server
     return None
 
+def is_valid_email(email: str) -> bool:
+    """Valida o formato do endereço de email"""
+    # Expressão regular para validação básica de email
+    pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+    return bool(re.match(pattern, email))
+
+def is_valid_chat_id(chat_id: str) -> bool:
+    """Valida o formato do chat_id do Telegram"""
+    # Chat IDs do Telegram podem ser numéricos positivos ou negativos
+    try:
+        int(chat_id)
+        return True
+    except ValueError:
+        return False
+
 def load_config() -> configparser.ConfigParser:
     """Carrega a configuração do arquivo config.ini"""
     config = configparser.ConfigParser()
     if os.path.exists('config.ini'):
         config.read('config.ini')
+        logger.info("Arquivo de configuração carregado com sucesso.")
     else:
-        # Configuração padrão
-        config['TELEGRAM'] = {
-            'token': '8002419840:AAFL_Wu0aZ_NOGS9LOo9a9HxRbdGMxxv6-E'
-        }
+        # Configuração padrão apenas para a seção TELEGRAM
+        config['TELEGRAM'] = {}
+        logger.info("Arquivo de configuração não encontrado. Criando novo arquivo.")
         save_config(config)
     return config
 
@@ -51,22 +97,37 @@ def save_config(config: configparser.ConfigParser):
     """Salva a configuração no arquivo config.ini"""
     with open('config.ini', 'w') as f:
         config.write(f)
+    logger.info("Configuração salva com sucesso.")
 
 def update_env_file(config: configparser.ConfigParser):
     """Atualiza o arquivo .env com as configurações atuais"""
     email_configs = {}
+    
     for section in config.sections():
-        if section.startswith('EMAIL_'):
-            email = section.replace('EMAIL_', '')
-            email_configs[email] = {
-                'server': config[section]['server'],
-                'port': int(config[section]['port']),
-                'password': config[section]['password'],
-                'telegram_chat_id': config[section]['telegram_chat_id']
-            }
+        if section.startswith('IMAP_'):
+            # Não usamos mais EMAIL_ como prefixo
+            if section in ['IMAP_PRIMARY', 'IMAP_SECONDARY']:
+                # Esses são nomes especiais que não contêm endereços de email
+                continue
+                
+            # Para seções como IMAP_user@example.com
+            email = section.replace('IMAP_', '')
+            if 'username' in config[section]:
+                email_configs[email] = {
+                    'server': config[section]['server'],
+                    'port': int(config[section]['port']),
+                    'username': config[section]['username'],
+                    'password': config[section]['password'],
+                    'is_active': config[section].getboolean('is_active', True)
+                }
+    
+    # Se tiver um token no arquivo de configuração
+    telegram_token = config['TELEGRAM'].get('token', '')
+    telegram_chat_id = config['TELEGRAM'].get('chat_id', '')
     
     env_content = f"""# Configuracao do Telegram Bot
-TELEGRAM_TOKEN={config['TELEGRAM']['token']}
+TELEGRAM_TOKEN={telegram_token}
+TELEGRAM_CHAT_ID={telegram_chat_id}
 
 # Configuracoes de monitoramento (formato JSON)
 MONITORED_EMAILS={json.dumps(email_configs)}
@@ -74,35 +135,71 @@ MONITORED_EMAILS={json.dumps(email_configs)}
     
     with open('.env', 'w', encoding='utf-8') as f:
         f.write(env_content)
+    logger.info("Arquivo .env atualizado com sucesso.")
 
-def test_email_connection(server: str, port: int, email: str, password: str) -> bool:
-    """Testa a conexão com o servidor IMAP"""
+def test_email_connection(server: str, port: int, username: str, password: str) -> Tuple[bool, str]:
+    """Testa a conexão com o servidor IMAP, retornando sucesso e mensagem de erro detalhada"""
     try:
         print(f"Conectando a {server}:{port}...")
         mail = imaplib.IMAP4_SSL(server, port)
         print("Autenticando...")
-        mail.login(email, password)
+        mail.login(username, password)
         print("✅ Conexão estabelecida!")
         mail.logout()
-        return True
+        return True, "Conexão estabelecida com sucesso."
+    except imaplib.IMAP4.error as e:
+        error_msg = f"Erro de autenticação IMAP: {str(e)}"
+        print(f"❌ {error_msg}")
+        logger.error(error_msg)
+        return False, error_msg
+    except ConnectionRefusedError:
+        error_msg = f"Conexão recusada pelo servidor {server}:{port}"
+        print(f"❌ {error_msg}")
+        logger.error(error_msg)
+        return False, error_msg
+    except TimeoutError:
+        error_msg = f"Tempo limite excedido ao conectar a {server}:{port}"
+        print(f"❌ {error_msg}")
+        logger.error(error_msg)
+        return False, error_msg
     except Exception as e:
-        print(f"Erro ao testar conexão: {e}")
-        return False
+        error_msg = f"Erro ao testar conexão: {str(e)}"
+        print(f"❌ {error_msg}")
+        logger.error(error_msg)
+        return False, error_msg
 
 def list_monitored_emails(config: configparser.ConfigParser):
     """Lista todos os e-mails monitorados"""
     print("\nE-mails monitorados:")
     print("-" * 60)
     found = False
+    
+    # Primeiro, tente encontrar as contas no formato IMAP_PRIMARY
+    special_accounts = []
     for section in config.sections():
-        if section.startswith('EMAIL_'):
+        if section in ['IMAP_PRIMARY', 'IMAP_SECONDARY'] and 'username' in config[section]:
             found = True
-            email = section.replace('EMAIL_', '')
+            email = config[section]['username']
             server = config[section]['server']
-            chat_id = config[section]['telegram_chat_id']
+            special_accounts.append(section)
+            print(f"📧 {email} ({section})")
+            print(f"   Servidor: {server}")
+            print(f"   Porta: {config[section]['port']}")
+            print(f"   Ativo: {config[section].getboolean('is_active', True)}")
+            print("-" * 60)
+    
+    # Depois, procure outras contas no formato IMAP_email@example.com
+    for section in config.sections():
+        if section.startswith('IMAP_') and section not in special_accounts:
+            found = True
+            email = section.replace('IMAP_', '')
+            if 'username' in config[section]:
+                email = config[section]['username']
+            server = config[section]['server']
             print(f"📧 {email}")
             print(f"   Servidor: {server}")
-            print(f"   Chat ID: {chat_id}")
+            print(f"   Porta: {config[section]['port']}")
+            print(f"   Ativo: {config[section].getboolean('is_active', True)}")
             print("-" * 60)
     
     if not found:
@@ -147,8 +244,8 @@ def add_email(config: configparser.ConfigParser):
     print("-" * 60)
     
     email = input("\nE-mail: ").strip()
-    if not email:
-        print("E-mail inválido!")
+    if not email or not is_valid_email(email):
+        print("E-mail inválido! Forneça um endereço de e-mail válido.")
         return
     
     # Detecta servidor automaticamente
@@ -163,40 +260,73 @@ def add_email(config: configparser.ConfigParser):
     print(f"\nServidor detectado: {server_config['name']}")
     print(server_config['instructions'])
     
-    section = f"EMAIL_{email}"
+    # Determinar qual seção usar
+    section_count = sum(1 for s in config.sections() if s.startswith('IMAP_'))
+    
+    if section_count == 0:
+        # Primeira conta = IMAP_PRIMARY
+        section = "IMAP_PRIMARY"
+    elif section_count == 1 and "IMAP_PRIMARY" in config and "IMAP_SECONDARY" not in config:
+        # Segunda conta = IMAP_SECONDARY
+        section = "IMAP_SECONDARY"
+    else:
+        # Demais contas usam formato IMAP_email
+        section = f"IMAP_{email}"
+    
     if section in config:
-        print("Este e-mail já está configurado!")
-        return
+        print(f"Uma conta já está configurada como {section}!")
+        if input("Deseja sobrescrever? (s/n): ").lower() != 's':
+            return
     
     password = input("\nSenha ou Senha de App: ").strip()
     if not password:
         print("Senha inválida!")
         return
     
-    chat_id = input("Chat ID do Telegram: ").strip()
-    if not chat_id:
-        print("Chat ID inválido!")
-        return
+    is_active = input("Ativar monitoramento para esta conta? (s/n): ").lower() == 's'
     
     # Testa a conexão antes de salvar
     print("\nTestando conexão...")
-    if test_email_connection(
+    success, error_message = test_email_connection(
         server_config['server'],
         server_config['port'],
         email,
         password
-    ):
+    )
+    
+    if success:
         config[section] = {
             'server': server_config['server'],
             'port': str(server_config['port']),
+            'username': email,
             'password': password,
-            'telegram_chat_id': chat_id
+            'is_active': str(is_active)
         }
+        
+        # Se for uma das contas principais, perguntar pelo chat_id do Telegram
+        if section in ["IMAP_PRIMARY", "IMAP_SECONDARY"]:
+            if 'TELEGRAM' not in config:
+                config['TELEGRAM'] = {}
+            
+            if 'token' not in config['TELEGRAM'] or not config['TELEGRAM']['token']:
+                token = input("\nToken do Bot Telegram: ").strip()
+                if token:
+                    config['TELEGRAM']['token'] = token
+            
+            if 'chat_id' not in config['TELEGRAM'] or not config['TELEGRAM']['chat_id']:
+                chat_id = input("\nChat ID do Telegram: ").strip()
+                if chat_id and is_valid_chat_id(chat_id):
+                    config['TELEGRAM']['chat_id'] = chat_id
+                else:
+                    print("Chat ID inválido! Deve ser um número inteiro.")
+                    return
+        
         save_config(config)
         update_env_file(config)
-        print("✅ E-mail adicionado com sucesso!")
+        print(f"✅ E-mail adicionado com sucesso como {section}!")
     else:
-        print("❌ Falha ao adicionar e-mail. Verifique as credenciais!")
+        print(f"❌ Falha ao adicionar e-mail: {error_message}")
+        print("Verifique as credenciais e tente novamente.")
 
 def remove_email(config: configparser.ConfigParser):
     """Remove um e-mail do monitoramento"""
@@ -205,19 +335,27 @@ def remove_email(config: configparser.ConfigParser):
     
     # Lista e-mails disponíveis
     emails = []
+    sections = []
+    
     for section in config.sections():
-        if section.startswith('EMAIL_'):
-            emails.append(section.replace('EMAIL_', ''))
+        if section.startswith('IMAP_'):
+            if 'username' in config[section]:
+                email = config[section]['username']
+                emails.append(email)
+                sections.append(section)
+            elif section not in ['IMAP_PRIMARY', 'IMAP_SECONDARY']:
+                email = section.replace('IMAP_', '')
+                emails.append(email)
+                sections.append(section)
     
     if not emails:
         print("Nenhum e-mail configurado!")
         return
     
     print("E-mails disponíveis:")
-    for i, email in enumerate(emails, 1):
-        section = f"EMAIL_{email}"
+    for i, (email, section) in enumerate(zip(emails, sections), 1):
         server = config[section]['server']
-        print(f"{i}. {email} ({server})")
+        print(f"{i}. {email} ({section} - {server})")
     
     try:
         choice = int(input("\nEscolha o número do e-mail para remover (0 para cancelar): "))
@@ -225,20 +363,213 @@ def remove_email(config: configparser.ConfigParser):
             return
         
         if 1 <= choice <= len(emails):
+            section = sections[choice - 1]
             email = emails[choice - 1]
-            section = f"EMAIL_{email}"
-            config.remove_section(section)
-            save_config(config)
-            update_env_file(config)
-            print(f"✅ E-mail {email} removido com sucesso!")
+            
+            print(f"\nVocê escolheu remover: {email} ({section})")
+            confirm = input("Tem certeza? (s/n): ").lower()
+            
+            if confirm == 's':
+                config.remove_section(section)
+                save_config(config)
+                update_env_file(config)
+                print(f"✅ E-mail {email} removido com sucesso!")
+            else:
+                print("Operação cancelada.")
         else:
             print("Opção inválida!")
     except ValueError:
         print("Entrada inválida!")
 
+def edit_email(config: configparser.ConfigParser):
+    """Edita as configurações de um e-mail monitorado"""
+    print("\nEditar configurações de e-mail")
+    print("-" * 60)
+    
+    # Lista e-mails disponíveis
+    emails = []
+    sections = []
+    
+    for section in config.sections():
+        if section.startswith('IMAP_'):
+            if 'username' in config[section]:
+                email = config[section]['username']
+                emails.append(email)
+                sections.append(section)
+            elif section not in ['IMAP_PRIMARY', 'IMAP_SECONDARY']:
+                email = section.replace('IMAP_', '')
+                emails.append(email)
+                sections.append(section)
+    
+    if not emails:
+        print("Nenhum e-mail configurado para editar!")
+        return
+    
+    print("E-mails disponíveis:")
+    for i, (email, section) in enumerate(zip(emails, sections), 1):
+        server = config[section]['server']
+        print(f"{i}. {email} ({section} - {server})")
+    
+    try:
+        choice = int(input("\nEscolha o número do e-mail para editar (0 para cancelar): "))
+        if choice == 0:
+            return
+        
+        if 1 <= choice <= len(emails):
+            section = sections[choice - 1]
+            email = emails[choice - 1]
+            
+            print(f"\nEditando: {email} ({section})")
+            print("Deixe em branco para manter o valor atual.")
+            
+            # Mostra valores atuais
+            print("\nValores atuais:")
+            for key, value in config[section].items():
+                print(f"  {key}: {value}")
+            
+            # Atualiza senha, se necessário
+            new_password = input("\nNova senha (deixe em branco para manter): ").strip()
+            if new_password:
+                config[section]['password'] = new_password
+            
+            # Atualiza status ativo
+            current_active = config[section].getboolean('is_active', True)
+            active_input = input(f"Ativo? (s/n) [{current_active and 's' or 'n'}]: ").strip().lower()
+            if active_input:
+                config[section]['is_active'] = str(active_input == 's')
+            
+            # Se for uma conta principal, permite editar config do Telegram
+            if section in ["IMAP_PRIMARY", "IMAP_SECONDARY"] and 'TELEGRAM' in config:
+                print("\nConfiguração do Telegram:")
+                
+                # Token
+                current_token = config['TELEGRAM'].get('token', '')
+                masked_token = "••••" + current_token[-4:] if current_token else "não configurado"
+                new_token = input(f"Token do Telegram [{masked_token}]: ").strip()
+                if new_token:
+                    config['TELEGRAM']['token'] = new_token
+                
+                # Chat ID
+                current_chat_id = config['TELEGRAM'].get('chat_id', '')
+                new_chat_id = input(f"Chat ID [{current_chat_id}]: ").strip()
+                if new_chat_id:
+                    if is_valid_chat_id(new_chat_id):
+                        config['TELEGRAM']['chat_id'] = new_chat_id
+                    else:
+                        print("Chat ID inválido! Deve ser um número inteiro.")
+                        return
+            
+            # Testa a conexão se a senha foi alterada
+            if new_password:
+                print("\nTestando nova conexão...")
+                success, error_message = test_email_connection(
+                    config[section]['server'],
+                    int(config[section]['port']),
+                    config[section]['username'],
+                    new_password
+                )
+                
+                if not success:
+                    print(f"❌ Aviso: {error_message}")
+                    if input("Deseja salvar mesmo assim? (s/n): ").lower() != 's':
+                        print("Operação cancelada.")
+                        return
+            
+            save_config(config)
+            update_env_file(config)
+            print("✅ Configurações atualizadas com sucesso!")
+        else:
+            print("Opção inválida!")
+    except ValueError:
+        print("Entrada inválida!")
+
+def setup_telegram(config: configparser.ConfigParser):
+    """Configura ou atualiza as configurações do Telegram"""
+    print("\nConfiguração do Telegram")
+    print("-" * 60)
+    
+    if 'TELEGRAM' not in config:
+        config['TELEGRAM'] = {}
+    
+    # Configuração atual
+    current_token = config['TELEGRAM'].get('token', '')
+    masked_token = "••••" + current_token[-4:] if current_token else "não configurado"
+    
+    current_chat_id = config['TELEGRAM'].get('chat_id', '')
+    
+    print(f"Token atual: {masked_token}")
+    print(f"Chat ID atual: {current_chat_id}")
+    
+    # Nova configuração
+    print("\nPara manter o valor atual, deixe em branco.")
+    
+    new_token = input("Novo token do bot Telegram: ").strip()
+    if new_token:
+        config['TELEGRAM']['token'] = new_token
+    
+    new_chat_id = input("Novo Chat ID: ").strip()
+    if new_chat_id:
+        if is_valid_chat_id(new_chat_id):
+            config['TELEGRAM']['chat_id'] = new_chat_id
+        else:
+            print("Chat ID inválido! Deve ser um número inteiro.")
+            return
+    
+    save_config(config)
+    update_env_file(config)
+    print("✅ Configuração do Telegram atualizada com sucesso!")
+
+def migrate_old_format(config: configparser.ConfigParser):
+    """Migra formatos antigos de configuração para o novo formato IMAP_*"""
+    changed = False
+    
+    # Migra formato EMAIL_* para IMAP_*
+    email_sections = [s for s in config.sections() if s.startswith('EMAIL_')]
+    for old_section in email_sections:
+        email = old_section.replace('EMAIL_', '')
+        
+        # Determina nova seção
+        if len(email_sections) == 1 and "IMAP_PRIMARY" not in config:
+            # Se só tem um email, torna-se o primário
+            new_section = "IMAP_PRIMARY"
+        elif len(email_sections) > 1 and old_section == email_sections[1] and "IMAP_SECONDARY" not in config:
+            # Segundo email torna-se o secundário
+            new_section = "IMAP_SECONDARY"
+        else:
+            # Outros emails mantêm o formato, mas com prefixo IMAP_
+            new_section = f"IMAP_{email}"
+        
+        # Cria nova seção
+        config[new_section] = {
+            'server': config[old_section]['server'],
+            'port': config[old_section]['port'],
+            'username': email,
+            'password': config[old_section]['password'],
+            'is_active': 'true'
+        }
+        
+        # Remove seção antiga
+        config.remove_section(old_section)
+        changed = True
+        
+        print(f"Migrado: {old_section} -> {new_section}")
+    
+    if changed:
+        save_config(config)
+        update_env_file(config)
+        print("✅ Migração de formato concluída com sucesso!")
+    
+    return changed
+
 def main():
     """Função principal do gerenciador de configuração"""
     config = load_config()
+    
+    # Verifica e migra formatos antigos
+    migrated = migrate_old_format(config)
+    if migrated:
+        print("\nAs configurações foram migradas para o novo formato!")
+        input("Pressione ENTER para continuar...")
     
     while True:
         print("\nGerenciador de Configuração do Monitor")
@@ -246,7 +577,9 @@ def main():
         print("1. Listar e-mails monitorados")
         print("2. Adicionar novo e-mail")
         print("3. Remover e-mail")
-        print("4. Sair")
+        print("4. Editar configurações de e-mail")
+        print("5. Configurar Telegram")
+        print("6. Sair")
         
         try:
             choice = int(input("\nEscolha uma opção: "))
@@ -258,12 +591,19 @@ def main():
             elif choice == 3:
                 remove_email(config)
             elif choice == 4:
+                edit_email(config)
+            elif choice == 5:
+                setup_telegram(config)
+            elif choice == 6:
                 print("\nSaindo...")
                 break
             else:
                 print("Opção inválida!")
         except ValueError:
             print("Entrada inválida!")
+        except Exception as e:
+            logger.error(f"Erro não tratado: {str(e)}")
+            print(f"Ocorreu um erro: {str(e)}")
         
         input("\nPressione ENTER para continuar...")
 
