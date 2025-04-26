@@ -1,224 +1,306 @@
 import imaplib
 import email
 import logging
-import time
 from email.header import decode_header
-from typing import List, Dict, Optional
-
-from app.config.settings import IMAP_CONFIG
-from .notification_client import NotificationClient
-from .telegram_client import TelegramClient
+from typing import Dict, List
 
 logger = logging.getLogger('wegnots.email_handler')
 
-class EmailHandler:
-    def __init__(self, notification_clients: List[NotificationClient]):
-        # Configurações IMAP
-        self.server = IMAP_CONFIG.get('server', '')
-        self.port = IMAP_CONFIG.get('port', 993)
-        self.username = IMAP_CONFIG.get('username', '')
-        self.password = IMAP_CONFIG.get('password', '')
-        self.check_interval = IMAP_CONFIG.get('check_interval', 60)
-        self.reconnect_attempts = IMAP_CONFIG.get('reconnect_attempts', 5)
-        self.reconnect_delay = IMAP_CONFIG.get('reconnect_delay', 30)
-        self.reconnect_backoff = IMAP_CONFIG.get('reconnect_backoff_factor', 1.5)
+class IMAPConnection:
+    def __init__(self, server, port, username, password, is_active=True):
+        self.server = server
+        self.port = port
+        self.username = username
+        self.password = password
+        self.is_active = is_active
+        self.imap = None
+        self.connection_status = 'disconnected'
         
-        # Clientes de notificação
-        self.notification_clients = notification_clients
-        self.telegram_client = next(
-            (client for client in notification_clients if isinstance(client, TelegramClient)),
-            None
-        )
-        
-        logger.debug(f"EmailHandler inicializado para servidor {self.server}:{self.port}")
-        
-        # Estabelece conexão inicial
-        self.connect_and_login()
-
-    def connect_and_login(self) -> bool:
-        """Estabelece conexão e faz login no servidor IMAP"""
-        try:
-            # Tenta conectar
-            if not self.connect():
-                return False
-                
-            # Se conectou, tenta login
-            if not self.login():
-                return False
-                
-            return True
-            
-        except Exception as e:
-            logger.error(f"Erro ao conectar e fazer login: {e}")
-            return False
-
     def connect(self) -> bool:
         """Estabelece conexão com servidor IMAP"""
-        try:
-            self.imap = imaplib.IMAP4_SSL(self.server, self.port)
-            logger.debug("Conexão IMAP estabelecida")
-            return True
-        except Exception as e:
-            logger.error(f"Erro ao conectar ao servidor IMAP: {e}")
+        if not self.is_active:
             return False
             
-    def login(self) -> bool:
-        """Realiza login no servidor IMAP"""
-        for attempt in range(self.reconnect_attempts):
-            try:
-                logger.info(f"Tentativa {attempt + 1}/{self.reconnect_attempts} de login no IMAP com usuário {self.username}")
-                self.imap.login(self.username, self.password)
-                logger.info("Login IMAP bem-sucedido")
-                return True
-            except Exception as e:
-                logger.error(f"Erro no login IMAP (tentativa {attempt + 1}): {e}")
-                if attempt < self.reconnect_attempts - 1:
-                    delay = self.reconnect_delay * (self.reconnect_backoff ** attempt)
-                    time.sleep(delay)
-        return False
-
-    def check_new_emails(self) -> List[str]:
-        """Verifica se há novos emails não lidos"""
-        logger.debug("Verificando novos e-mails...")
         try:
-            # Tenta selecionar INBOX
-            status, _ = self.imap.select('INBOX')
+            if self.imap:
+                try:
+                    self.imap.logout()
+                except:
+                    pass
+                    
+            self.imap = imaplib.IMAP4_SSL(self.server, self.port)
+            self.imap.login(self.username, self.password)
+            self.connection_status = 'connected'
+            logger.info(f"Conectado ao servidor IMAP {self.server}")
+            return True
+            
+        except Exception as e:
+            self.connection_status = 'error'
+            logger.error(f"Erro ao conectar ao servidor {self.server}: {e}")
+            return False
+
+    def disconnect(self):
+        """Desconecta do servidor IMAP"""
+        if self.imap:
+            try:
+                self.imap.logout()
+                logger.info(f"Desconectado do servidor IMAP {self.server}")
+            except:
+                pass
+        self.connection_status = 'disconnected'
+
+    def check_connection(self) -> bool:
+        """Verifica se a conexão está ativa e reconecta se necessário"""
+        if not self.imap:
+            return self.connect()
+        try:
+            self.imap.noop()
+            return True
+        except:
+            return self.connect()
+
+    def get_recent_emails(self, limit=30) -> List[Dict]:
+        """Obtém os emails mais recentes da caixa de entrada"""
+        emails = []
+        try:
+            if not self.check_connection():
+                logger.error(f"Falha ao conectar ao servidor {self.server} para buscar emails recentes")
+                return emails
+
+            # Seleciona a caixa de entrada
+            status, messages = self.imap.select('INBOX')
             if status != 'OK':
-                # Se falhou, tenta reconectar
-                logger.warning("Seleção da INBOX falhou. Tentando reconectar...")
-                if not self.connect_and_login():
-                    return []
-                    
-                # Tenta selecionar INBOX novamente
-                status, _ = self.imap.select('INBOX')
-                if status != 'OK':
-                    logger.error("Falha ao selecionar INBOX mesmo após reconexão")
-                    return []
-                    
-            # Busca emails não lidos
-            _, messages = self.imap.search(None, 'UNSEEN')
-            return messages[0].split()
-            
+                logger.error(f"Falha ao selecionar INBOX no servidor {self.server}: {status}")
+                return emails
+
+            # Busca todos os emails
+            status, messages = self.imap.search(None, 'ALL')
+            if status != 'OK':
+                logger.error(f"Falha ao buscar emails no servidor {self.server}: {status}")
+                return emails
+
+            # Obtém os IDs dos emails em ordem reversa (mais recentes primeiro)
+            email_ids = messages[0].split()
+            email_ids = email_ids[-limit:] if len(email_ids) > limit else email_ids
+            email_ids.reverse()
+
+            for email_id in email_ids:
+                try:
+                    status, msg_data = self.imap.fetch(email_id, '(RFC822)')
+                    if status != 'OK':
+                        logger.error(f"Falha ao buscar email ID {email_id} no servidor {self.server}")
+                        continue
+
+                    email_body = msg_data[0][1]
+                    email_message = email.message_from_bytes(email_body)
+
+                    # Log detalhado do email
+                    logger.info(f"Email encontrado - Servidor: {self.server}, ID: {email_id}, "
+                              f"Subject: {email_message['subject']}, "
+                              f"From: {email_message['from']}, "
+                              f"Date: {email_message['date']}")
+
+                    emails.append({
+                        'id': email_id.decode(),
+                        'subject': email_message['subject'],
+                        'from': email_message['from'],
+                        'date': email_message['date']
+                    })
+                except Exception as e:
+                    logger.error(f"Erro ao processar email ID {email_id} no servidor {self.server}: {str(e)}")
+
         except Exception as e:
-            logger.error(f"Erro ao verificar novos emails: {e}")
-            return []
+            logger.error(f"Erro ao buscar emails recentes no servidor {self.server}: {str(e)}")
+        
+        return emails
 
-    def parse_email(self, email_id: str) -> Optional[Dict]:
-        """
-        Processa um email e extrai informações relevantes.
-        Retorna um dicionário com os dados do email ou None em caso de erro.
-        """
+    def diagnose_connection(self):
+        """Realiza diagnóstico detalhado da conexão IMAP"""
+        diagnosis = {
+            'server': self.server,
+            'ssl_connection': False,
+            'authentication': False,
+            'inbox_access': False,
+            'can_list_emails': False,
+            'recent_emails_count': 0,
+            'latest_email_info': None,
+            'error': None
+        }
+        
         try:
-            _, msg_data = self.imap.fetch(email_id, '(RFC822)')
-            email_body = msg_data[0][1]
-            msg = email.message_from_bytes(email_body)
+            # Testa conexão SSL
+            self.imap_conn = imaplib.IMAP4_SSL(self.server, self.port)
+            diagnosis['ssl_connection'] = True
             
-            subject = self._decode_header(msg['subject'])
-            sender = msg['from']
-            date = msg['date']
-
-            # Extrai informações do assunto
-            alert_info = self._parse_alert_subject(subject)
-            if alert_info:
-                return {
-                    'equipment_id': alert_info['equipment_id'],
-                    'alert_type': alert_info['alert_type'],
-                    'subject': subject,
-                    'from': sender,
-                    'date': date
-                }
+            # Testa autenticação
+            self.imap_conn.login(self.username, self.password)
+            diagnosis['authentication'] = True
             
-            return None
-            
-        except Exception as e:
-            logger.error(f"Erro ao processar email {email_id}: {e}")
-            return None
-
-    def _decode_header(self, header: Optional[str]) -> str:
-        """Decodifica cabeçalho do email"""
-        if not header:
-            return ''
-            
-        try:
-            decoded = decode_header(header)
-            parts = []
-            for text, charset in decoded:
-                if isinstance(text, bytes):
-                    text = text.decode(charset or 'utf-8', errors='ignore')
-                parts.append(str(text))
-            return ' '.join(parts)
-        except Exception as e:
-            logger.error(f"Erro ao decodificar cabeçalho: {e}")
-            return header
-
-    def _parse_alert_subject(self, subject: str) -> Optional[Dict]:
-        """
-        Analisa o assunto do email para extrair informações do alerta.
-        Formato esperado: equipamento-nivel 
-        Exemplo: "servidor01-1" para alerta crítico do servidor01
-        """
-        try:
-            if not subject or '-' not in subject:
-                return None
+            # Testa acesso à INBOX
+            status, messages = self.imap_conn.select('INBOX')
+            if status == 'OK':
+                diagnosis['inbox_access'] = True
                 
-            parts = subject.strip().split('-')
-            if len(parts) != 2:
-                return None
-                
-            equipment_id = parts[0].strip()
+                # Testa listagem dos últimos 30 emails
+                num_messages = min(int(messages[0]), 30)
+                status, messages = self.imap_conn.search(None, 'ALL')
+                if status == 'OK':
+                    diagnosis['can_list_emails'] = True
+                    email_ids = messages[0].split()
+                    
+                    if email_ids:
+                        # Conta emails recentes
+                        diagnosis['recent_emails_count'] = len(email_ids[-30:])
+                        
+                        # Obtém informações do email mais recente
+                        latest_email_id = email_ids[-1]
+                        status, msg_data = self.imap_conn.fetch(latest_email_id, '(RFC822)')
+                        if status == 'OK':
+                            email_body = msg_data[0][1]
+                            email_message = email.message_from_bytes(email_body)
+                            
+                            diagnosis['latest_email_info'] = {
+                                'subject': decode_header(email_message['subject'])[0][0],
+                                'from': email_message['from'],
+                                'date': email_message['date']
+                            }
+            
+        except Exception as e:
+            diagnosis['error'] = str(e)
+        finally:
             try:
-                alert_type = int(parts[1])
-                if alert_type not in [1, 2, 3]:  # 1=Crítico, 2=Moderado, 3=Informativo
-                    alert_type = 3  # Default para informativo
-            except ValueError:
-                alert_type = 3
+                if hasattr(self, 'imap_conn'):
+                    self.imap_conn.close()
+                    self.imap_conn.logout()
+            except:
+                pass
                 
-            return {
-                'equipment_id': equipment_id,
-                'alert_type': alert_type
-            }
-            
-        except Exception as e:
-            logger.error(f"Erro ao analisar assunto do email: {e}")
-            return None
+        return diagnosis
 
+class EmailHandler:
+    def __init__(self, telegram_client):
+        self.primary = None
+        self.secondary = None
+        self.telegram_client = telegram_client
+        
+    def setup_connections(self, primary_config: Dict, secondary_config: Dict):
+        """Configura conexões IMAP primária e secundária"""
+        self.primary = IMAPConnection(
+            server=primary_config['server'],
+            port=primary_config['port'],
+            username=primary_config['username'],
+            password=primary_config['password'],
+            is_active=primary_config.get('is_active', True)
+        )
+        
+        self.secondary = IMAPConnection(
+            server=secondary_config['server'],
+            port=secondary_config['port'],
+            username=secondary_config['username'],
+            password=secondary_config['password'],
+            is_active=secondary_config.get('is_active', True)
+        )
+        
+    def connect(self) -> bool:
+        """Estabelece conexões com servidores IMAP"""
+        primary_ok = self.primary.connect() if self.primary else False
+        secondary_ok = self.secondary.connect() if self.secondary else False
+        return primary_ok or secondary_ok
+        
+    def check_new_emails(self) -> List[Dict]:
+        """Verifica novos e-mails em todos os servidores ativos"""
+        new_emails = []
+        
+        for connection in [self.primary, self.secondary]:
+            if not connection or not connection.is_active or not connection.imap:
+                continue
+                
+            try:
+                connection.imap.select('INBOX')
+                _, messages = connection.imap.search(None, 'UNSEEN')
+                email_ids = messages[0].split()
+                
+                for email_id in email_ids:
+                    _, msg_data = connection.imap.fetch(email_id, '(RFC822)')
+                    email_body = msg_data[0][1]
+                    message = email.message_from_bytes(email_body)
+                    
+                    subject = decode_email_header(message['subject'])
+                    from_addr = decode_email_header(message['from'])
+                    body = get_email_body(message)
+                    
+                    new_emails.append({
+                        'id': email_id.decode(),
+                        'server': connection.server,
+                        'subject': subject,
+                        'from': from_addr,
+                        'body': body
+                    })
+                    
+            except Exception as e:
+                logger.error(f"Erro ao verificar e-mails em {connection.server}: {e}")
+                connection.connect()  # Tenta reconectar em caso de erro
+                
+        return new_emails
+        
     def process_emails(self):
         """Processa emails não lidos e envia alertas"""
         new_emails = self.check_new_emails()
         
-        for email_id in new_emails:
-            email_data = self.parse_email(email_id)
-            if email_data:
-                # Envia alerta via Telegram se configurado
-                if self.telegram_client:
-                    extra_info = {
-                        'subject': email_data.get('subject', ''),
-                        'from': email_data.get('from', ''),
-                        'date': email_data.get('date', '')
-                    }
-                    
-                    self.telegram_client.send_alert(
-                        equipment_id=email_data['equipment_id'],
-                        alert_type=email_data['alert_type'],
-                        user=self.username,  # Usa conta IMAP como usuário
-                        extra_info=extra_info
-                    )
-                    
-                # Envia para outros clientes de notificação configurados
-                for client in self.notification_clients:
-                    if not isinstance(client, TelegramClient):
-                        client.send_alert(
-                            equipment_id=email_data['equipment_id'],
-                            alert_type=email_data['alert_type'],
-                            user=self.username
-                        )
+        for email_data in new_emails:
+            try:
+                self.telegram_client.send_alert(
+                    subject=email_data['subject'],
+                    from_addr=email_data['from'],
+                    body=email_data['body']
+                )
+            except Exception as e:
+                logger.error(f"Erro ao processar e-mail: {e}")
+                
+    def shutdown(self):
+        """Encerra conexões IMAP"""
+        if self.primary:
+            self.primary.disconnect()
+        if self.secondary:
+            self.secondary.disconnect()
 
-    def close(self):
-        """Fecha conexão com servidor IMAP"""
+    def diagnose_connections(self) -> Dict:
+        """Realiza diagnóstico de todas as conexões"""
+        return {
+            'primary': self.primary.diagnose_connection() if self.primary else None,
+            'secondary': self.secondary.diagnose_connection() if self.secondary else None
+        }
+
+def decode_email_header(header):
+    """Decodifica cabeçalhos de e-mail"""
+    if not header:
+        return ""
+    try:
+        decoded_parts = decode_header(header)
+        parts = []
+        for part, charset in decoded_parts:
+            if isinstance(part, bytes):
+                try:
+                    parts.append(part.decode(charset or 'utf-8', errors='replace'))
+                except:
+                    parts.append(part.decode('utf-8', errors='replace'))
+            else:
+                parts.append(str(part))
+        return " ".join(parts)
+    except:
+        return str(header)
+
+def get_email_body(message):
+    """Extrai o corpo do e-mail"""
+    if message.is_multipart():
+        for part in message.walk():
+            if part.get_content_type() == "text/plain":
+                try:
+                    return part.get_payload(decode=True).decode('utf-8', errors='replace')
+                except:
+                    continue
+    else:
         try:
-            if hasattr(self, 'imap'):
-                self.imap.close()
-                self.imap.logout()
-                logger.info("Logout IMAP realizado com sucesso")
-        except Exception as e:
-            logger.error(f"Erro ao fechar conexão IMAP: {e}")
+            return message.get_payload(decode=True).decode('utf-8', errors='replace')
+        except:
+            return message.get_payload()

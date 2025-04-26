@@ -1,0 +1,86 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:6.0
+    restart: always
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=adminpassword
+      - MONGO_INITDB_DATABASE=wegnots
+    volumes:
+      - mongodb_data:/data/db
+      - mongodb_config:/data/configdb
+      - ./monitor/data/fix-mongo.js:/docker-entrypoint-initdb.d/fix-mongo.js:ro
+    networks:
+      - wegnots-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  monitor:
+    build:
+      context: ./monitor
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      - MONGODB_URI=mongodb://admin:adminpassword@mongodb:27017/wegnots?authSource=admin
+      - FLASK_ENV=production
+      - FLASK_APP=main:app
+      - GUNICORN_WORKERS=4
+      - GUNICORN_TIMEOUT=120
+      # Configurações IMAP (substitua com valores reais ou use uma variável de ambiente)
+      - IMAP_SERVER=imap.example.com
+      - IMAP_PORT=993
+      - IMAP_USERNAME=${IMAP_USERNAME:-usuario@example.com}
+      - IMAP_PASSWORD=${IMAP_PASSWORD:-senhaexemplo}
+      - IMAP_CHECK_INTERVAL=60
+      - DEVELOPMENT_MODE=true  # Defina como 'false' em produção
+    volumes:
+      - ./monitor:/app:rw  # Montagem para desenvolvimento
+      - ./monitor/uploads:/app/uploads:rw
+    ports:
+      - "5000:5000"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - wegnots-network
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:5000/health\")'" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  admin:
+    build:
+      context: ./wegnots-admin
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:5000
+    # Modificando a dependência para iniciar mesmo se o monitor não estiver saudável
+    depends_on:
+      - monitor
+    networks:
+      - wegnots-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:5173 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+networks:
+  wegnots-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+  mongodb_config:

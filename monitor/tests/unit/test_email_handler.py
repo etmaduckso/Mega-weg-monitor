@@ -6,35 +6,37 @@ from app.core.notification_client import NotificationClient
 class TestEmailHandler(unittest.TestCase):
     @patch('imaplib.IMAP4_SSL')
     def test_connection(self, mock_imap):
+        # Configurar o mock do cliente de notificação
         mock_notification_client = MagicMock(spec=NotificationClient)
-        handler = EmailHandler(notification_clients=[mock_notification_client])
-        handler.mail = mock_imap.return_value
+        
+        # Criar instância do EmailHandler com MongoDB mockado
+        mock_mongo_db = MagicMock()
+        handler = EmailHandler(notification_clients=[mock_notification_client], mongo_db=mock_mongo_db)
+        
+        # Configurar o mock do IMAP
+        mock_imap_instance = mock_imap.return_value
+        
+        # Simular primeira tentativa bem-sucedida
+        mock_imap_instance.login.return_value = ('OK', [b'Logged in'])
+        self.assertTrue(handler._connect())
+        
+        # Simular falha na segunda tentativa
+        mock_imap_instance.login.return_value = ('NO', [b'Invalid credentials'])
+        self.assertFalse(handler._connect())
+        
+        # Verificar chamadas ao método login
+        mock_imap_instance.login.assert_called_with(handler.username, handler.password)
+        
+        # Verificar que o status foi atualizado corretamente
+        self.assertEqual(handler.monitoring_stats['connection_status'], 'error')
 
-        # Simulate IMAP server responses
-        call_tracker = {'count': 0}
+    def test_check_new_emails(self):
+        # TODO: Implementar teste de verificação de novos e-mails
+        pass
 
-        def mock_login(*args, **kwargs):
-            call_tracker['count'] += 1
-            if call_tracker['count'] == 1:
-                return ('OK', [b'Logged in'])
-            else:
-                return ('NO', [b'Auth failed'])
-
-        handler.mail.login.side_effect = mock_login
-
-        # Add debug logging to trace the mocked responses
-        print(f"Mocked login responses: {handler.mail.login.side_effect}")
-
-        # Test successful login
-        self.assertTrue(handler.connect())
-        print("First connection attempt passed.")
-
-        # Test failed login
-        self.assertFalse(handler.connect())
-        print("Second connection attempt failed as expected.")
-
-        # Verify the mock was called with correct arguments
-        handler.mail.login.assert_called_with(handler.username, handler.password)
+    def test_parse_email(self):
+        # TODO: Implementar teste de parsing de e-mail
+        pass
 
 if __name__ == '__main__':
     unittest.main()

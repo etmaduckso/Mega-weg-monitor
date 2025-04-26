@@ -2,10 +2,11 @@
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![React 18+](https://img.shields.io/badge/react-18+-61DAFB.svg)](https://reactjs.org/)
+[![Node.js 18+](https://img.shields.io/badge/node-18+-339933.svg)](https://nodejs.org/)
+[![Vite](https://img.shields.io/badge/vite-powered-646CFF.svg)](https://vitejs.dev/)
+[![Material-UI](https://img.shields.io/badge/mui-styled-007FFF.svg)](https://mui.com/)
 [![MongoDB](https://img.shields.io/badge/mongodb-5.0+-47A248.svg)](https://www.mongodb.com/)
 [![Docker](https://img.shields.io/badge/docker-supported-brightgreen.svg)](https://www.docker.com/)
-[![SOLID](https://img.shields.io/badge/principles-SOLID-orange.svg)](https://en.wikipedia.org/wiki/SOLID)
-[![DevOps](https://img.shields.io/badge/practices-DevOps-blueviolet.svg)](https://aws.amazon.com/devops/what-is-devops/)
 
 ![Última Atualização](https://img.shields.io/badge/última_atualização-Abril_2025-informational)
 
@@ -16,23 +17,22 @@ Sistema profissional para monitoramento de e-mails IMAP e envio de notificaçõe
 ## 🚀 Novidades na Versão Atual (Abril 2025)
 
 ### ✨ Interface Administrativa (Front-end)
-- **Dashboard Completo**: Visualize todos os usuários, status dos serviços e estatísticas em tempo real
-- **Login Seguro**: Sistema de autenticação com usuário admin padrão para primeiro acesso
-- **Menu Lateral**: Navegação intuitiva entre diferentes seções do sistema
-- **Responsividade**: Interface adaptada para dispositivos móveis e desktop
-- **Gestão de Usuários**: Visualize e gerencie usuários cadastrados para receber notificações
+- **Dashboard Moderno**: Interface totalmente renovada com Material-UI
+- **Login Seguro**: Sistema robusto de autenticação com token JWT
+- **Menu Lateral Intuitivo**: Navegação simplificada entre diferentes seções
+- **Responsividade Total**: Interface adaptada para qualquer dispositivo
+- **Gestão Avançada**: Controle completo de emails monitorados e notificações
 
-### 🔐 Sistema de Autenticação
-- **Login Padrão**: Acesse com usuário `admin` e senha `admin` para primeiro uso
-- **Logout Funcional**: Encerre sua sessão com segurança
-- **Proteção de Rotas**: Acesso restrito a usuários autenticados
-- **Token JWT**: Autenticação moderna baseada em tokens
+### 🔍 Monitor de E-mails
+- **Múltiplas Contas**: Suporte para monitorar várias contas simultaneamente
+- **Decodificação Robusta**: Tratamento avançado de caracteres especiais
+- **Formatação Rica**: Mensagens Telegram com Markdown e emojis
+- **Sistema de Retry**: Reconexão inteligente com backoff exponencial
 
-### 🌐 Arquitetura Full-Stack
-- **Backend Python**: Monitoramento robusto com Python e MongoDB
-- **Frontend React**: Interface moderna com React, Vite e Material UI
-- **Comunicação API**: Integração backend-frontend via API RESTful
-- **Docker Compose**: Facilidade para executar todo o ambiente com um único comando
+### 🔐 Configuração Simplificada
+- **config.ini**: Arquivo de configuração intuitivo e organizado
+- **Docker Ready**: Ambiente completo com um único comando
+- **Volumes Persistentes**: Dados preservados entre reinicializações
 
 ---
 
@@ -49,11 +49,9 @@ Sistema profissional para monitoramento de e-mails IMAP e envio de notificaçõe
 - Sistema de retry avançado com backoff exponencial
 - Tratamento robusto de erros de rede (incluindo 502 Bad Gateway)
 - Mensagens de status do sistema (inicialização/encerramento)
-- Roteamento inteligente de mensagens baseado em remetentes
 - Interface de notificação extensível (NotificationClient)
 - Suporte atual para:
   - Telegram (com suporte a múltiplos chat IDs)
-  - RocketChat (para ambientes corporativos)
 
 ### 🏗 **Arquitetura SOLID**:
 - **Single Responsibility Principle (SRP)**:
@@ -65,7 +63,7 @@ Sistema profissional para monitoramento de e-mails IMAP e envio de notificaçõe
   - Estrutura extensível para futuros tipos de alertas
 
 - **Liskov Substitution Principle (LSP)**:
-  - Implementações de notificação (Telegram, RocketChat) são intercambiáveis
+  - Implementações de notificação (Telegram, futuras integrações) são intercambiáveis
   - Comportamento consistente através da interface comum
 
 - **Interface Segregation Principle (ISP)**:
@@ -81,7 +79,7 @@ Sistema profissional para monitoramento de e-mails IMAP e envio de notificaçõe
 ## 📋 Pré-requisitos
 
 - Python 3.9+ (para o backend)
-- Node.js 16+ (para o frontend)
+- Node.js 18+ (para o frontend)
 - MongoDB 5.0+
 - Git
 - Conta de e-mail com IMAP habilitado
@@ -96,10 +94,11 @@ Sistema profissional para monitoramento de e-mails IMAP e envio de notificaçõe
 
 #### Instalação Manual (sem Docker)
 
-**1. Clone o repositório**
+**1. Configure o ambiente de trabalho**
 ```bash
-git clone https://github.com/seu-usuario/wegnots.git
-cd wegnots
+# Crie uma pasta para o projeto
+mkdir WegNots
+cd WegNots
 ```
 
 **2. Configure o Backend (Python)**
@@ -128,13 +127,16 @@ npm install
 **4. Configure o MongoDB**
 - Instale o MongoDB seguindo a [documentação oficial](https://www.mongodb.com/docs/manual/installation/)
 - Inicie o serviço do MongoDB
+- Execute o script `fix_mongodb.js` para configurar as coleções necessárias:
+```bash
+mongo < fix_mongodb.js
+```
 
 #### Instalação com Docker (Recomendado)
 
-**1. Clone o repositório**
+**1. Prepare os arquivos do projeto**
 ```bash
-git clone https://github.com/seu-usuario/wegnots.git
-cd wegnots
+# Certifique-se de que o arquivo docker-compose.yml está na pasta raiz
 ```
 
 **2. Inicie com Docker Compose**
@@ -153,17 +155,20 @@ Isso iniciará automaticamente o backend, frontend e MongoDB em containers separ
 - Certifique-se de que sua conta de e-mail tem IMAP habilitado
 - Para Gmail, você precisa ativar o "Acesso a app menos seguro" ou usar senhas de app
 
-**3. Configure as Variáveis de Ambiente**
-- Crie um arquivo `.env` na pasta `monitor` com as seguintes variáveis:
+**3. Configure o arquivo config.ini**
+- Edite o arquivo `monitor/config.ini` com as seguintes configurações:
 
-```
-IMAP_SERVER=imap.seuservidor.com
-IMAP_PORT=993
-IMAP_USER=seu@email.com
-IMAP_PASSWORD=sua_senha
-TELEGRAM_TOKEN=SEU_TOKEN_DO_BOT
-TELEGRAM_CHAT_ID=SEU_CHAT_ID_DO_TELEGRAM
-MONGODB_URI=mongodb://localhost:27017/wegnots
+```ini
+[IMAP_PRIMARY]
+server = seu.servidor.imap.com
+port = 993
+username = seu@email.com
+password = sua_senha
+is_active = true
+
+[TELEGRAM]
+token = SEU_TOKEN_DO_BOT
+chat_id = SEU_CHAT_ID_DO_TELEGRAM
 ```
 
 ### 3️⃣ Executando a Aplicação
@@ -173,7 +178,7 @@ MONGODB_URI=mongodb://localhost:27017/wegnots
 **1. Inicie o Backend**
 ```bash
 cd monitor
-python main.py
+python simple_monitor.py
 ```
 
 **2. Inicie o Frontend em outro terminal**
@@ -200,7 +205,7 @@ npm run dev
 ### 5️⃣ Testando o Sistema
 
 1. **Para testar o monitoramento de e-mails**:
-   - Envie um e-mail para a conta configurada com palavras como "urgente" ou "crítico" no assunto
+   - Envie um e-mail para a conta configurada
    - Observe o bot do Telegram enviar uma notificação
 
 2. **Para testar o encerramento gracioso**:
@@ -214,7 +219,7 @@ npm run dev
 ### Problema: Não recebo notificações no Telegram
 - Verifique se o token do bot está correto
 - Confirme se o chat_id está configurado corretamente
-- Verifique os logs em `wegnots.log` para detalhes específicos
+- Verifique os logs em `monitor/logs/wegnots.log` para detalhes específicos
 
 ### Problema: Não consigo me conectar ao servidor IMAP
 - Confirme que as credenciais estão corretas
@@ -228,7 +233,6 @@ npm run dev
 
 ### Problema: O MongoDB não conecta
 - Verifique se o serviço do MongoDB está em execução
-- Confirme a URL de conexão no arquivo `.env`
 - Tente se conectar manualmente com um cliente MongoDB
 
 ---
@@ -237,20 +241,24 @@ npm run dev
 
 ```
 wegnots/
-├── monitor/                # Backend Python
-│   ├── app/
-│   │   ├── core/           # Lógica principal
-│   │   ├── config/         # Configurações
-│   ├── main.py             # Ponto de entrada do backend
-│   └── docker-compose.yml  # Configuração Docker
-├── wegnots-admin/          # Frontend React
-│   ├── src/
-│   │   ├── components/     # Componentes React
-│   │   ├── context/        # Context API (autenticação, etc.)
-│   │   ├── layouts/        # Layouts da aplicação
-│   │   ├── pages/          # Páginas da aplicação
-│   │   ├── services/       # Serviços e API
-│   ├── package.json        # Dependências do frontend
+├── docker-compose.yml     # Configuração Docker principal
+├── fix_mongodb.js         # Script para configuração do MongoDB
+├── README.md              # Documentação principal
+├── monitor/               # Backend Python
+│   ├── simple_monitor.py  # Script principal de monitoramento
+│   ├── config.ini         # Arquivo de configuração
+│   ├── docker-compose.yml # Configuração Docker do monitor
+│   ├── requirements.txt   # Dependências Python
+│   ├── app/               # Módulos adicionais do backend
+│   │   ├── core/          # Lógica principal e handlers
+│   ├── logs/              # Arquivos de log
+├── wegnots-admin/         # Frontend React
+│   ├── src/               # Código-fonte do frontend
+│   │   ├── components/    # Componentes React
+│   │   ├── context/       # Context API (autenticação, etc.)
+│   │   ├── pages/         # Páginas da aplicação
+│   │   ├── services/      # Serviços e API
+│   ├── package.json       # Dependências do frontend
 ```
 
 ---
@@ -270,7 +278,6 @@ O sistema categoriza os e-mails em três níveis baseados no assunto:
 A interface administrativa oferece:
 
 - **Visão Geral**: Status dos serviços e estatísticas
-- **Usuários**: Lista de usuários cadastrados para receber notificações
 - **Logs**: Visualização de eventos e alertas recentes
 - **Configurações**: Ajustes do sistema e preferências
 

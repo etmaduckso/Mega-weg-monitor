@@ -67,6 +67,22 @@ export const getMonitoringConfig = async () => {
   }
 };
 
+// Função para salvar configurações de monitoramento
+export const saveMonitoringConfig = async (config: any) => {
+  try {
+    const response = await api.post('/config/monitoring', config);
+    return response.data;
+  } catch (error: any) {
+    if (error.response) {
+      throw new Error('Erro ao salvar configurações. Verifique os dados e tente novamente.');
+    } else if (error.request) {
+      throw new Error('Servidor não respondeu. Verifique sua conexão.');
+    } else {
+      throw new Error('Erro ao fazer a requisição.');
+    }
+  }
+};
+
 // Função para registrar usuário
 export const registerUser = async (data: RegisterUserData) => {
   try {
@@ -89,4 +105,20 @@ export const registerUser = async (data: RegisterUserData) => {
 // Função para login de usuário
 export const loginUser = async (data: { email: string; password: string }) => {
   return api.post('/login', data);
+};
+
+// Função para salvar configurações do usuário
+export const saveUserConfig = async (userId: string, data: any) => {
+  try {
+    const response = await api.put(`/users/${userId}`, data);
+    return response.data;
+  } catch (error: any) {
+    if (error.response) {
+      throw new Error('Erro ao salvar configurações do usuário. Verifique os dados e tente novamente.');
+    } else if (error.request) {
+      throw new Error('Servidor não respondeu. Verifique sua conexão.');
+    } else {
+      throw new Error('Erro ao fazer a requisição.');
+    }
+  }
 };

@@ -57,7 +57,7 @@ export const getMonitoringConfigMock = async () => {
     reconnectBackoffFactor: 1.5,
     logLevel: "INFO",
     emailSettings: {
-      server: "imap.titan.email",
+      server: "br188.hostgator.com.br",
       port: 993,
       user: "monitoramento@empresa.com"
     },

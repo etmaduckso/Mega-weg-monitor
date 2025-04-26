@@ -1,0 +1,64 @@
+{
+  "imap": {
+    "server": "",
+    "port": 993,
+    "username": "",
+    "password": "",
+    "check_interval": 60,
+    "reconnect_attempts": 5,
+    "reconnect_delay": 30,
+    "reconnect_backoff_factor": 1.5
+  },
+  "telegram": {
+    "token": "",
+    "chat_id": "",
+    "retry_attempts": 3,
+    "retry_delay": 5
+  },
+  "rocketchat": {
+    "url": "",
+    "user_id": "",
+    "token": "",
+    "channel": "general",
+    "webhook_url": "",
+    "retry_attempts": 3,
+    "retry_delay": 5
+  },
+  "mongodb": {
+    "uri": "mongodb://localhost:27017/",
+    "database": "wegnots"
+  },
+  "alerts": {
+    "levels": {
+      "critical": [
+        "urgente",
+        "cr\u00edtico",
+        "emerg\u00eancia"
+      ],
+      "important": [
+        "importante",
+        "aten\u00e7\u00e3o",
+        "alerta"
+      ],
+      "low": [
+        "informa\u00e7\u00e3o",
+        "atualiza\u00e7\u00e3o",
+        "conclu\u00eddo"
+      ]
+    },
+    "patterns": {
+      "critical": [],
+      "important": [],
+      "low": []
+    }
+  },
+  "system": {
+    "central_server": {
+      "email": "sooretama@megasec.com.br",
+      "is_active": false
+    },
+    "check_interval": 300,
+    "stats_history_size": 1000,
+    "daily_summary_time": "23:59"
+  }
+}

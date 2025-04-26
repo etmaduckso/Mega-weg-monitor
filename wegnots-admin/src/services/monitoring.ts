@@ -1,7 +1,23 @@
 import { api } from './api';
-import type { MonitoredEmail, TelegramConfig, NotificationRouting } from '../types/monitoring';
+import type { MonitoredEmail, TelegramConfig, NotificationRouting, CentralServer } from '../types/monitoring';
 
 export const monitoringService = {
+  // Servidor Central
+  async getCentralServer() {
+    const { data } = await api.get<CentralServer>('/api/central-server');
+    return data;
+  },
+
+  async updateCentralServerStatus(active: boolean) {
+    const { data } = await api.put('/api/central-server/status', { active });
+    return data;
+  },
+
+  async updateCentralServerConfig(email: string) {
+    const { data } = await api.put('/api/central-server', { email });
+    return data;
+  },
+
   // E-mails monitorados
   async getMonitoredEmails() {
     const { data } = await api.get<MonitoredEmail[]>('/api/emails');
@@ -44,22 +60,22 @@ export const monitoringService = {
 
   // Roteamento de notificações
   async getNotificationRoutings() {
-    const { data } = await api.get<NotificationRouting[]>('/api/notification-routings');
+    const { data } = await api.get<NotificationRouting[]>('/api/routing-rules');
     return data;
   },
 
   async createNotificationRouting(routing: Omit<NotificationRouting, 'id' | 'createdAt' | 'updatedAt'>) {
-    const { data } = await api.post<NotificationRouting>('/api/notification-routings', routing);
+    const { data } = await api.post<NotificationRouting>('/api/routing-rules', routing);
     return data;
   },
 
   async updateNotificationRouting(id: string, routing: Partial<NotificationRouting>) {
-    const { data } = await api.put<NotificationRouting>(`/api/notification-routings/${id}`, routing);
+    const { data } = await api.put<NotificationRouting>(`/api/routing-rules/${id}`, routing);
     return data;
   },
 
   async deleteNotificationRouting(id: string) {
-    await api.delete(`/api/notification-routings/${id}`);
+    await api.delete(`/api/routing-rules/${id}`);
   },
 
   // Teste de conexão Telegram
@@ -67,4 +83,27 @@ export const monitoringService = {
     const { data } = await api.post<{ success: boolean; message: string }>('/api/telegram/test', { chatId });
     return data;
   },
+
+  // Configurações gerais
+  async getMonitoringConfig() {
+    const { data } = await api.get('/api/monitoring/config');
+    return data;
+  },
+
+  async updateMonitoringConfig(config: any) {
+    const { data } = await api.put('/api/monitoring/config', config);
+    return data;
+  },
+  
+  // Status do sistema
+  async getSystemStatus() {
+    const { data } = await api.get('/api/monitoring/status');
+    return data;
+  },
+
+  // Configuração do sistema
+  async getSystemConfig() {
+    const { data } = await api.get('/api/config');
+    return data;
+  }
 };

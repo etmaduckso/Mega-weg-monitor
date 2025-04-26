@@ -1,229 +1,207 @@
 #!/usr/bin/env python3
 """
-WegNots - Sistema de Monitoramento de E-mails com Alertas Multicanal
+WegNots - Sistema de Monitoramento de E-mails com Alertas via Telegram
 """
 
 import time
 import logging
 import sys
 import signal
+import threading
+import configparser
 from datetime import datetime
-from pymongo import MongoClient, errors
-from app.core.email_handler import EmailHandler
 from app.core.telegram_client import TelegramClient
-from app.core.user_model import UserModel
-from app.config.settings import (
-    IMAP_CONFIG, 
-    TELEGRAM_CONFIG,
-    setup_logging, 
-    validate_config
-)
+from app.core.email_handler import EmailHandler
 
-# Configura o logger principal
-logger = setup_logging()
+# Configura o logger
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('wegnots.log'),
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger('wegnots')
 
 # Estado global para controle de execução
 running = True
 
 def signal_handler(sig, frame):
-    """Manipulador de sinais para encerramento gracioso."""
+    """Manipulador de sinais para encerramento gracioso"""
     global running
     logger.info("Sinal de encerramento recebido. Encerrando monitoramento...")
     running = False
 
-def setup_mongodb():
-    """
-    Inicializa a conexão com o MongoDB.
-    """
-    try:
-        client = MongoClient("mongodb://localhost:27017/", serverSelectionTimeoutMS=5000)
-        # Testa a conexão
-        client.server_info()
-        db = client["wegnots"]
-        logger.info("Conexão com MongoDB estabelecida com sucesso")
-        return db
-    except errors.ServerSelectionTimeoutError:
-        logger.error("Não foi possível conectar ao MongoDB. Verifique se o servidor está rodando.")
-        return None
-    except Exception as e:
-        logger.error(f"Erro ao conectar ao MongoDB: {e}")
-        return None
-
-def setup_notification_clients():
-    """
-    Configura e inicializa os clientes de notificação.
-    """
-    clients = []
+def load_config():
+    """Carrega configurações do arquivo config.ini"""
+    config = configparser.ConfigParser()
+    config.read('config.ini')
     
-    try:
-        # Inicializa MongoDB e UserModel
-        db = setup_mongodb()
-        if db is None:  # Corrigido: usar 'is None' ao invés de verificação booleana
-            raise Exception("Falha ao inicializar MongoDB")
-            
-        user_model = UserModel(db)
-        logger.info("UserModel inicializado com sucesso")
-        
-        # Configura cliente Telegram
-        telegram_client = TelegramClient(user_model)
-        clients.append(telegram_client)
-        logger.info("Cliente Telegram inicializado com sucesso")
-        
-        # Envia mensagem de inicialização
-        startup_message = (
-            "🟢 *WegNots Monitor Iniciado*\n\n"
-            f"⏰ {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n"
-            "📧 IMAP: Conectando...\n"
-            "✅ Sistema ativo e monitorando"
-        )
-        telegram_client.send_text_message(startup_message)
-    except Exception as e:
-        logger.error(f"Erro ao inicializar serviços: {e}")
+    primary_config = {
+        'server': config['IMAP_PRIMARY']['server'],
+        'port': int(config['IMAP_PRIMARY']['port']),
+        'username': config['IMAP_PRIMARY']['username'],
+        'password': config['IMAP_PRIMARY']['password'],
+        'is_active': config['IMAP_PRIMARY'].getboolean('is_active', True)
+    }
     
-    return clients
+    secondary_config = {
+        'server': config['IMAP_SECONDARY']['server'],
+        'port': int(config['IMAP_SECONDARY']['port']),
+        'username': config['IMAP_SECONDARY']['username'],
+        'password': config['IMAP_SECONDARY']['password'],
+        'is_active': config['IMAP_SECONDARY'].getboolean('is_active', True)
+    }
+    
+    telegram_config = {
+        'token': config['TELEGRAM']['token'],
+        'chat_id': config['TELEGRAM']['chat_id']
+    }
+    
+    return primary_config, secondary_config, telegram_config
 
-def process_email(email_handler, notification_clients, email_id):
-    """
-    Processa um único e-mail e envia alerta se necessário.
-    """
-    try:
-        # Obtém o e-mail completo
-        msg = email_handler.parse_email(email_id)
-        if not msg:
-            logger.warning(f"Não foi possível obter o e-mail {email_id}")
-            return False
-            
-        # Extrai dados do e-mail
-        email_data = email_handler.extract_email_data(msg)
-        if not email_data:
-            logger.warning(f"Falha ao extrair dados do e-mail {email_id}")
-            return False
-            
-        # Processa dados e determina tipo de alerta
-        logger.info(f"Processando e-mail: {email_data['subject']}")
-        
-        # Determina o tipo de alerta com base no assunto
-        subject = email_data['subject'].lower()
-        alert_type = 3  # Alerta leve por padrão
-        
-        if "urgente" in subject or "crítico" in subject or "emergência" in subject:
-            alert_type = 1  # Alerta crítico
-        elif "importante" in subject or "atenção" in subject:
-            alert_type = 2  # Alerta moderado
-            
-        # Envia alertas para todos os clientes configurados
-        success = True
-        for client in notification_clients:
-            try:
-                result = client.send_alert(
-                    equipment_id="WEG-MONITOR-001",
-                    alert_type=alert_type,
-                    user="Sistema WegNots",
-                    extra_info=email_data
-                )
-                if result:
-                    logger.info(f"Alerta enviado com sucesso via {client.__class__.__name__}")
-                else:
-                    logger.warning(f"Falha ao enviar alerta via {client.__class__.__name__}")
-                    success = False
-            except Exception as e:
-                logger.error(f"Erro ao enviar alerta via {client.__class__.__name__}: {e}")
-                success = False
-                
-        return success
-        
-    except Exception as e:
-        logger.error(f"Erro ao processar e-mail {email_id}: {e}", exc_info=True)
-        return False
+def diagnose_primary_server(config):
+    """Realiza diagnóstico específico do servidor primário"""
+    logger.info("Iniciando diagnóstico do servidor primário")
+    
+    primary_server = {
+        'server': config['server'],
+        'port': config['port'],
+        'username': config['username'],
+        'password': config['password'],
+        'is_active': config['is_active']
+    }
+    
+    if not all([primary_server['server'], primary_server['username'], primary_server['password']]):
+        logger.error("Configurações do servidor primário estão incompletas")
+        return
+    
+    connection = EmailHandler(None)
+    connection.setup_connections(primary_server, None)
+    diagnosis = connection.diagnose_connections()['primary']
+    
+    logger.info("=== Resultado do Diagnóstico do Servidor Primário ===")
+    logger.info(f"Servidor: {diagnosis['server']}")
+    logger.info(f"Conexão SSL: {'OK' if diagnosis['ssl_connection'] else 'Falha'}")
+    logger.info(f"Autenticação: {'OK' if diagnosis['authentication'] else 'Falha'}")
+    logger.info(f"Acesso INBOX: {'OK' if diagnosis['inbox_access'] else 'Falha'}")
+    logger.info(f"Listagem de Emails: {'OK' if diagnosis['can_list_emails'] else 'Falha'}")
+    logger.info(f"Qtd Emails Recentes: {diagnosis['recent_emails_count']}")
+    
+    if diagnosis['error']:
+        logger.error(f"Erro encontrado: {diagnosis['error']}")
+    
+    return diagnosis
 
 def main():
-    """
-    Função principal do monitor de e-mails.
-    """
-    logger.info("=" * 60)
-    logger.info(f"Iniciando WegNots Monitor v1.1.0 em {datetime.now()}")
-    logger.info("=" * 60)
-    
-    # Registra handler de sinal para SIGINT (Ctrl+C) e SIGTERM
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
-    
-    # Valida configurações
-    if not validate_config():
-        logger.critical("Configurações inválidas. Encerrando aplicação.")
-        return 1
-        
-    # Inicia serviços
-    email_handler = None
-    notification_clients = []
-    
+    """Função principal do monitor de e-mails"""
     try:
-        # Inicializa os clientes de notificação
-        notification_clients = setup_notification_clients()
+        logger.info("=" * 60)
+        logger.info(f"Iniciando WegNots Monitor em {datetime.now()}")
+        logger.info("=" * 60)
         
-        # Inicializa o manipulador de e-mails com os clientes de notificação
-        email_handler = EmailHandler(notification_clients=notification_clients)
+        # Registra handler de sinal para SIGINT (Ctrl+C)
+        signal.signal(signal.SIGINT, signal_handler)
         
-        # Tenta conectar ao servidor IMAP
+        # Carrega configurações
+        primary_config, secondary_config, telegram_config = load_config()
+        
+        # Diagnóstico do servidor primário
+        diagnose_primary_server(primary_config)
+        
+        # Inicializa clientes
+        telegram_client = TelegramClient(
+            token=telegram_config['token'],
+            chat_id=telegram_config['chat_id']
+        )
+        
+        # Inicializa handler de e-mail
+        email_handler = EmailHandler(telegram_client)
+        email_handler.setup_connections(primary_config, secondary_config)
+        
+        # Realiza diagnóstico detalhado
+        logger.info("Realizando diagnóstico dos servidores IMAP...")
+        diagnosis = email_handler.diagnose_connections()
+        
+        if diagnosis['primary']:
+            primary_status = diagnosis['primary']
+            logger.info(f"Diagnóstico do servidor primário ({primary_status['server']}):")
+            logger.info(f"- SSL/TLS: {'✓' if primary_status['ssl_connection'] else '✗'}")
+            logger.info(f"- Autenticação: {'✓' if primary_status['authentication'] else '✗'}")
+            logger.info(f"- Acesso à Caixa: {'✓' if primary_status['inbox_access'] else '✗'}")
+            logger.info(f"- Listagem de Emails: {'✓' if primary_status['can_list_emails'] else '✗'}")
+            logger.info(f"- Emails Recentes: {primary_status['recent_emails_count']}")
+            if primary_status['error']:
+                logger.error(f"- Erro: {primary_status['error']}")
+                
+            # Envia diagnóstico para o Telegram
+            diagnostic_message = (
+                "📊 *Diagnóstico do Servidor Primário*\n\n"
+                f"🔒 SSL/TLS: {'✓' if primary_status['ssl_connection'] else '✗'}\n"
+                f"🔑 Autenticação: {'✓' if primary_status['authentication'] else '✗'}\n"
+                f"📫 Acesso à Caixa: {'✓' if primary_status['inbox_access'] else '✗'}\n"
+                f"📧 Listagem de Emails: {'✓' if primary_status['can_list_emails'] else '✗'}\n"
+                f"📨 Emails Recentes: {primary_status['recent_emails_count']}\n"
+            )
+            if primary_status['error']:
+                diagnostic_message += f"❌ Erro: {primary_status['error']}\n"
+            telegram_client.send_text_message(diagnostic_message)
+        
+        # Tenta conectar aos servidores IMAP
         if not email_handler.connect():
-            logger.critical("Falha na conexão inicial com servidor de e-mail. Verifique as credenciais.")
+            logger.critical("Falha ao conectar aos servidores IMAP. Verifique as credenciais.")
             return 1
             
-        logger.info("Conexões estabelecidas. Monitoramento ativo.")
-        
-        # Define o intervalo de verificação a partir da configuração
-        check_interval = IMAP_CONFIG['check_interval']
-        
-        # Loop principal de monitoramento
+        # Loop principal com monitoramento aprimorado
+        check_interval = 60  # 1 minuto
         last_check_time = 0
+        consecutive_failures = 0
+        max_failures = 3
         
         while running:
             current_time = time.time()
             
-            # Verifica se já passou o intervalo de verificação
             if current_time - last_check_time >= check_interval:
                 try:
-                    # Verifica novos e-mails
-                    new_emails = email_handler.check_new_emails()
-                    
-                    if new_emails:
-                        logger.info(f"Novos e-mails detectados: {len(new_emails)}")
-                        for email_id in new_emails:
-                            process_email(email_handler, notification_clients, email_id)
-                            
+                    logger.info("Verificando novos e-mails...")
+                    email_handler.process_emails()
+                    consecutive_failures = 0
                 except Exception as e:
-                    logger.error(f"Erro durante monitoramento: {e}", exc_info=True)
+                    logger.error(f"Erro durante processamento de e-mails: {e}")
+                    consecutive_failures += 1
+                    
+                    if consecutive_failures >= max_failures:
+                        logger.warning("Realizando novo diagnóstico após falhas consecutivas...")
+                        diagnosis = email_handler.diagnose_connections()
+                        if diagnosis['primary'] and diagnosis['primary']['error']:
+                            logger.error(f"Diagnóstico detectou erro: {diagnosis['primary']['error']}")
+                            telegram_client.send_text_message(
+                                "⚠️ *Alerta de Monitoramento*\n\n"
+                                f"Servidor: {primary_config['server']}\n"
+                                f"Erro: {diagnosis['primary']['error']}\n"
+                                "Tentando reconexão..."
+                            )
+                            email_handler.connect()
+                        consecutive_failures = 0
                 
                 last_check_time = current_time
-                
-            # Espera um tempo curto antes de verificar novamente
+            
             time.sleep(1)
-                
-    except Exception as e:
-        logger.critical(f"Erro fatal no sistema: {e}", exc_info=True)
-        return 1
-        
-    finally:
+            
         # Encerramento gracioso
-        logger.info("Encerrando serviços...")
+        email_handler.shutdown()
+        telegram_client.send_text_message(
+            "🔴 *WegNots Monitor Encerrado*\n\n"
+            f"⏰ {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n"
+            "Sistema encerrado com sucesso."
+        )
         
-        if email_handler:
-            try:
-                email_handler.close()
-                logger.info("Conexão IMAP encerrada com sucesso")
-            except Exception as e:
-                logger.error(f"Erro ao encerrar conexão IMAP: {e}")
-                
-        if notification_clients:
-            for client in notification_clients:
-                if hasattr(client, 'send_shutdown_message'):
-                    try:
-                        client.send_shutdown_message()
-                    except Exception as e:
-                        logger.error(f"Erro ao enviar mensagem de encerramento via {client.__class__.__name__}: {e}")
-                
-    logger.info("Sistema encerrado com sucesso")
-    return 0
+        return 0
+        
+    except Exception as e:
+        logger.exception("Erro fatal durante execução")
+        return 1
 
 if __name__ == "__main__":
     sys.exit(main())
