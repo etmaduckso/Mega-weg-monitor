@@ -33,6 +33,7 @@ class IMAPConfig:
     username: str
     password: str
     is_active: bool
+    telegram_chat_id: str = ""  # Chat ID específico para esta conta de email
 
 @dataclass
 class TelegramConfig:
@@ -223,9 +224,13 @@ class EmailMonitoringService:
                         port=int(config[section]['port']),
                         username=config[section]['username'],
                         password=config[section]['password'],
-                        is_active=config[section].getboolean('is_active', True)
+                        is_active=config[section].getboolean('is_active', True),
+                        telegram_chat_id=config[section].get('telegram_chat_id', '')
                     ))
-                    logging.info(f"Configuração IMAP carregada para: {config[section]['server']}")
+                    chat_id_info = ""
+                    if 'telegram_chat_id' in config[section] and config[section]['telegram_chat_id']:
+                        chat_id_info = f" (Chat ID específico: {config[section]['telegram_chat_id']})"
+                    logging.info(f"Configuração IMAP carregada para: {config[section]['server']}{chat_id_info}")
                 except Exception as e:
                     logging.error(f"Erro ao carregar configuração IMAP para {section}: {str(e)}")
         
@@ -265,11 +270,22 @@ class EmailMonitoringService:
         return self.active and any(monitor.connected for monitor in self.monitors)
     
     async def monitor_emails(self):
+        """Monitora os emails e envia notificações via Telegram"""
+        # Cria um dicionário para associar monitores aos seus respectivos configs
+        monitor_configs = {monitor: config for monitor, config in zip(self.monitors, [c for c in self.config['imap'] if c.is_active])}
+        
         while self.should_continue():
             try:
-                tasks = [monitor.check_emails() for monitor in self.monitors]
-                results = await asyncio.gather(*tasks)
+                # Coleta emails de todos os monitores
+                results = []
+                for monitor in self.monitors:
+                    emails = await monitor.check_emails()
+                    for email_data in emails:
+                        # Adiciona o config do monitor a cada email para podermos acessar o chat_id específico
+                        email_data['monitor_config'] = monitor_configs[monitor]
+                    results.append(emails)
                 
+                # Processa todos os emails coletados
                 for emails in results:
                     for email_data in emails:
                         message = (
@@ -278,15 +294,30 @@ class EmailMonitoringService:
                             f"🌐 Servidor: {email_data['server']}\n"
                             f"📅 Data: {email_data['date']}"
                         )
-                        await self.notifier.send_notification(message)
+                        
+                        # Verifica se existe um chat_id específico para esta conta
+                        monitor_config = email_data['monitor_config']
+                        if monitor_config.telegram_chat_id:
+                            # Cria um notificador temporário com o chat_id específico
+                            specific_notifier = TelegramNotifier(TelegramConfig(
+                                token=self.config['telegram'].token,
+                                chat_id=monitor_config.telegram_chat_id
+                            ))
+                            await specific_notifier.send_notification(message)
+                            logging.info(f"Notificação enviada para chat_id específico: {monitor_config.telegram_chat_id}")
+                        else:
+                            # Usa o notificador padrão (chat_id global)
+                            await self.notifier.send_notification(message)
+                            logging.info(f"Notificação enviada para chat_id global: {self.config['telegram'].chat_id}")
                 
+                # Aguarda antes de verificar novamente
                 await asyncio.sleep(60)  # Verifica a cada minuto
             except Exception as e:
-                logging.error(f"Error in monitoring loop: {str(e)}")
-                # If there's an error, wait a bit before retrying
+                logging.error(f"Erro no loop de monitoramento: {str(e)}")
+                # Se houver um erro, espera um pouco antes de tentar novamente
                 await asyncio.sleep(10)
         
-        logging.info("Monitoring service stopped")
+        logging.info("Serviço de monitoramento encerrado")
 
 async def main():
     service = EmailMonitoringService()

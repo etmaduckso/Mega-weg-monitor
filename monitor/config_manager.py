@@ -118,7 +118,8 @@ def update_env_file(config: configparser.ConfigParser):
                     'port': int(config[section]['port']),
                     'username': config[section]['username'],
                     'password': config[section]['password'],
-                    'is_active': config[section].getboolean('is_active', True)
+                    'is_active': config[section].getboolean('is_active', True),
+                    'telegram_chat_id': config[section].get('telegram_chat_id', '')
                 }
     
     # Se tiver um token no arquivo de configuração
@@ -186,6 +187,7 @@ def list_monitored_emails(config: configparser.ConfigParser):
             print(f"   Servidor: {server}")
             print(f"   Porta: {config[section]['port']}")
             print(f"   Ativo: {config[section].getboolean('is_active', True)}")
+            print(f"   Chat ID: {config[section].get('telegram_chat_id', 'não configurado')}")
             print("-" * 60)
     
     # Depois, procure outras contas no formato IMAP_email@example.com
@@ -200,6 +202,7 @@ def list_monitored_emails(config: configparser.ConfigParser):
             print(f"   Servidor: {server}")
             print(f"   Porta: {config[section]['port']}")
             print(f"   Ativo: {config[section].getboolean('is_active', True)}")
+            print(f"   Chat ID: {config[section].get('telegram_chat_id', 'não configurado')}")
             print("-" * 60)
     
     if not found:
@@ -285,6 +288,29 @@ def add_email(config: configparser.ConfigParser):
     
     is_active = input("Ativar monitoramento para esta conta? (s/n): ").lower() == 's'
     
+    # Solicitar chat_id do Telegram específico para esta conta
+    print("\nConfiguração de notificação")
+    print("-" * 40)
+    
+    # Verificar se existe configuração global do Telegram
+    if 'TELEGRAM' in config and 'chat_id' in config['TELEGRAM']:
+        global_chat_id = config['TELEGRAM']['chat_id']
+        print(f"Chat ID global atual: {global_chat_id}")
+        use_global = input("Usar o Chat ID global para esta conta? (s/n): ").lower() == 's'
+        
+        if use_global:
+            chat_id = global_chat_id
+        else:
+            chat_id = input("Digite o Chat ID específico para este e-mail: ").strip()
+            if not chat_id or not is_valid_chat_id(chat_id):
+                print("Chat ID inválido! Deve ser um número inteiro.")
+                return
+    else:
+        chat_id = input("Digite o Chat ID do Telegram para este e-mail: ").strip()
+        if not chat_id or not is_valid_chat_id(chat_id):
+            print("Chat ID inválido! Deve ser um número inteiro.")
+            return
+    
     # Testa a conexão antes de salvar
     print("\nTestando conexão...")
     success, error_message = test_email_connection(
@@ -300,30 +326,29 @@ def add_email(config: configparser.ConfigParser):
             'port': str(server_config['port']),
             'username': email,
             'password': password,
-            'is_active': str(is_active)
+            'is_active': str(is_active),
+            'telegram_chat_id': chat_id  # Adicionando chat_id específico
         }
         
-        # Se for uma das contas principais, perguntar pelo chat_id do Telegram
-        if section in ["IMAP_PRIMARY", "IMAP_SECONDARY"]:
-            if 'TELEGRAM' not in config:
-                config['TELEGRAM'] = {}
-            
-            if 'token' not in config['TELEGRAM'] or not config['TELEGRAM']['token']:
-                token = input("\nToken do Bot Telegram: ").strip()
-                if token:
-                    config['TELEGRAM']['token'] = token
-            
-            if 'chat_id' not in config['TELEGRAM'] or not config['TELEGRAM']['chat_id']:
-                chat_id = input("\nChat ID do Telegram: ").strip()
-                if chat_id and is_valid_chat_id(chat_id):
-                    config['TELEGRAM']['chat_id'] = chat_id
-                else:
-                    print("Chat ID inválido! Deve ser um número inteiro.")
-                    return
+        # Se for uma das contas principais e não existir configuração do Telegram, criar
+        if 'TELEGRAM' not in config:
+            config['TELEGRAM'] = {}
+        
+        # Verificar se há token do Telegram configurado
+        if 'token' not in config['TELEGRAM'] or not config['TELEGRAM']['token']:
+            token = input("\nToken do Bot Telegram: ").strip()
+            if token:
+                config['TELEGRAM']['token'] = token
+        
+        # Garantir que exista um chat_id global como fallback
+        if 'chat_id' not in config['TELEGRAM'] or not config['TELEGRAM']['chat_id']:
+            # Usar o chat_id desta conta como global se não existir um global
+            config['TELEGRAM']['chat_id'] = chat_id
         
         save_config(config)
         update_env_file(config)
         print(f"✅ E-mail adicionado com sucesso como {section}!")
+        print(f"✅ Alertas serão enviados para o chat ID: {chat_id}")
     else:
         print(f"❌ Falha ao adicionar e-mail: {error_message}")
         print("Verifique as credenciais e tente novamente.")
@@ -438,6 +463,16 @@ def edit_email(config: configparser.ConfigParser):
             if active_input:
                 config[section]['is_active'] = str(active_input == 's')
             
+            # Atualiza chat_id específico
+            current_chat_id = config[section].get('telegram_chat_id', '')
+            new_chat_id = input(f"Chat ID específico [{current_chat_id}]: ").strip()
+            if new_chat_id:
+                if is_valid_chat_id(new_chat_id):
+                    config[section]['telegram_chat_id'] = new_chat_id
+                else:
+                    print("Chat ID inválido! Deve ser um número inteiro.")
+                    return
+            
             # Se for uma conta principal, permite editar config do Telegram
             if section in ["IMAP_PRIMARY", "IMAP_SECONDARY"] and 'TELEGRAM' in config:
                 print("\nConfiguração do Telegram:")
@@ -449,12 +484,12 @@ def edit_email(config: configparser.ConfigParser):
                 if new_token:
                     config['TELEGRAM']['token'] = new_token
                 
-                # Chat ID
-                current_chat_id = config['TELEGRAM'].get('chat_id', '')
-                new_chat_id = input(f"Chat ID [{current_chat_id}]: ").strip()
-                if new_chat_id:
-                    if is_valid_chat_id(new_chat_id):
-                        config['TELEGRAM']['chat_id'] = new_chat_id
+                # Chat ID global
+                current_global_chat_id = config['TELEGRAM'].get('chat_id', '')
+                new_global_chat_id = input(f"Chat ID global [{current_global_chat_id}]: ").strip()
+                if new_global_chat_id:
+                    if is_valid_chat_id(new_global_chat_id):
+                        config['TELEGRAM']['chat_id'] = new_global_chat_id
                     else:
                         print("Chat ID inválido! Deve ser um número inteiro.")
                         return
@@ -498,7 +533,7 @@ def setup_telegram(config: configparser.ConfigParser):
     current_chat_id = config['TELEGRAM'].get('chat_id', '')
     
     print(f"Token atual: {masked_token}")
-    print(f"Chat ID atual: {current_chat_id}")
+    print(f"Chat ID global atual: {current_chat_id}")
     
     # Nova configuração
     print("\nPara manter o valor atual, deixe em branco.")
@@ -507,7 +542,7 @@ def setup_telegram(config: configparser.ConfigParser):
     if new_token:
         config['TELEGRAM']['token'] = new_token
     
-    new_chat_id = input("Novo Chat ID: ").strip()
+    new_chat_id = input("Novo Chat ID global: ").strip()
     if new_chat_id:
         if is_valid_chat_id(new_chat_id):
             config['TELEGRAM']['chat_id'] = new_chat_id
