@@ -2,12 +2,12 @@ import imaplib
 import email
 import logging
 from email.header import decode_header
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 logger = logging.getLogger('wegnots.email_handler')
 
 class IMAPConnection:
-    def __init__(self, server, port, username, password, is_active=True):
+    def __init__(self, server, port, username, password, is_active=True, telegram_chat_id=None, telegram_token=None):
         self.server = server
         self.port = port
         self.username = username
@@ -15,6 +15,9 @@ class IMAPConnection:
         self.is_active = is_active
         self.imap = None
         self.connection_status = 'disconnected'
+        # Informações do Telegram específicas para esta conexão
+        self.telegram_chat_id = telegram_chat_id
+        self.telegram_token = telegram_token
         
     def connect(self) -> bool:
         """Estabelece conexão com servidor IMAP"""
@@ -59,7 +62,7 @@ class IMAPConnection:
         except:
             return self.connect()
 
-    def get_recent_emails(self, limit=30) -> List[Dict]:
+    def get_recent_emails(self, limit=10) -> List[Dict]:
         """Obtém os emails mais recentes da caixa de entrada"""
         emails = []
         try:
@@ -179,97 +182,170 @@ class IMAPConnection:
 
 class EmailHandler:
     def __init__(self, telegram_client):
-        self.primary = None
-        self.secondary = None
+        self.connections = {}  # Dicionário com todas as conexões IMAP
         self.telegram_client = telegram_client
         
-    def setup_connections(self, primary_config: Dict, secondary_config: Dict):
-        """Configura conexões IMAP primária e secundária"""
-        self.primary = IMAPConnection(
-            server=primary_config['server'],
-            port=primary_config['port'],
-            username=primary_config['username'],
-            password=primary_config['password'],
-            is_active=primary_config.get('is_active', True)
-        )
-        
-        self.secondary = IMAPConnection(
-            server=secondary_config['server'],
-            port=secondary_config['port'],
-            username=secondary_config['username'],
-            password=secondary_config['password'],
-            is_active=secondary_config.get('is_active', True)
-        )
+    def setup_connections(self, config_sections):
+        """Configura múltiplas conexões IMAP a partir de seções do arquivo de configuração"""
+        for section_name, config in config_sections.items():
+            if section_name.startswith('IMAP_') and config.get('is_active', 'false').lower() == 'true':
+                connection = IMAPConnection(
+                    server=config['server'],
+                    port=int(config['port']),
+                    username=config['username'],
+                    password=config['password'],
+                    is_active=True,
+                    telegram_chat_id=config.get('telegram_chat_id'),
+                    telegram_token=config.get('telegram_token')
+                )
+                
+                # Adiciona a conexão ao dicionário, usando o username como chave
+                self.connections[config['username']] = connection
+                logger.info(f"Configurada conexão IMAP para {config['username']}")
         
     def connect(self) -> bool:
-        """Estabelece conexões com servidores IMAP"""
-        primary_ok = self.primary.connect() if self.primary else False
-        secondary_ok = self.secondary.connect() if self.secondary else False
-        return primary_ok or secondary_ok
+        """Estabelece conexões com todos os servidores IMAP"""
+        success = False
+        
+        for username, connection in self.connections.items():
+            if connection.connect():
+                success = True
+                
+        return success
         
     def check_new_emails(self) -> List[Dict]:
         """Verifica novos e-mails em todos os servidores ativos"""
         new_emails = []
         
-        for connection in [self.primary, self.secondary]:
+        for username, connection in self.connections.items():
             if not connection or not connection.is_active or not connection.imap:
+                logger.warning(f"Conexão inativa ou com problemas para {username}")
                 continue
                 
             try:
-                connection.imap.select('INBOX')
-                _, messages = connection.imap.search(None, 'UNSEEN')
-                email_ids = messages[0].split()
+                logger.debug(f"Verificando emails para {username} em {connection.server}")
+                status, selected = connection.imap.select('INBOX')
+                if status != 'OK':
+                    logger.error(f"Falha ao selecionar INBOX para {username}: {status}")
+                    continue
+                    
+                logger.debug(f"Caixa INBOX selecionada para {username}, contém {selected[0].decode()} mensagens")
+                
+                # Estratégia 1: Busca emails não lidos (UNSEEN)
+                status, messages = connection.imap.search(None, 'UNSEEN')
+                email_ids = messages[0].split() if status == 'OK' else []
+                
+                logger.debug(f"Encontrados {len(email_ids)} emails não lidos para {username}")
+                
+                # Estratégia 2: Se não houver emails não lidos, busca emails recentes (últimas 24h)
+                if not email_ids:
+                    from datetime import datetime, timedelta
+                    yesterday = (datetime.now() - timedelta(days=1)).strftime("%d-%b-%Y")
+                    logger.debug(f"Procurando emails recentes desde {yesterday} para {username}")
+                    
+                    status, messages = connection.imap.search(None, f'(SINCE "{yesterday}")')
+                    email_ids = messages[0].split() if status == 'OK' else []
+                    logger.debug(f"Encontrados {len(email_ids)} emails recentes para {username}")
+                
+                # Estratégia 3 (NOVA): Se ainda não encontrou emails, pega os 5 mais recentes
+                if not email_ids:
+                    logger.debug(f"Procurando os 5 emails mais recentes para {username}")
+                    status, messages = connection.imap.search(None, 'ALL')
+                    if status == 'OK':
+                        all_ids = messages[0].split()
+                        # Pega os 5 mais recentes (últimos 5 na ordem dos IDs)
+                        email_ids = all_ids[-5:] if len(all_ids) > 5 else all_ids
+                        logger.debug(f"Pegando os {len(email_ids)} emails mais recentes de {len(all_ids)} totais")
                 
                 for email_id in email_ids:
-                    _, msg_data = connection.imap.fetch(email_id, '(RFC822)')
-                    email_body = msg_data[0][1]
-                    message = email.message_from_bytes(email_body)
-                    
-                    subject = decode_email_header(message['subject'])
-                    from_addr = decode_email_header(message['from'])
-                    body = get_email_body(message)
-                    
-                    new_emails.append({
-                        'id': email_id.decode(),
-                        'server': connection.server,
-                        'subject': subject,
-                        'from': from_addr,
-                        'body': body
-                    })
+                    try:
+                        logger.debug(f"Processando email ID {email_id} para {username}")
+                        status, msg_data = connection.imap.fetch(email_id, '(RFC822)')
+                        
+                        if status != 'OK' or not msg_data or not msg_data[0]:
+                            logger.error(f"Falha ao buscar email ID {email_id} para {username}")
+                            continue
+                            
+                        email_body = msg_data[0][1]
+                        message = email.message_from_bytes(email_body)
+                        
+                        subject = decode_email_header(message['subject'])
+                        from_addr = decode_email_header(message['from'])
+                        body = get_email_body(message)
+                        
+                        # Log detalhado antes de processar o email
+                        logger.info(f"Novo email encontrado para {username}: Subject='{subject}', De='{from_addr}'")
+                        
+                        new_emails.append({
+                            'id': email_id.decode(),
+                            'server': connection.server,
+                            'username': username,
+                            'subject': subject,
+                            'from': from_addr,
+                            'body': body,
+                            # Adiciona informações do Telegram específicas dessa conta, se existirem
+                            'telegram_chat_id': connection.telegram_chat_id,
+                            'telegram_token': connection.telegram_token
+                        })
+                        
+                    except Exception as e:
+                        logger.error(f"Erro ao processar email ID {email_id} para {username}: {e}")
                     
             except Exception as e:
-                logger.error(f"Erro ao verificar e-mails em {connection.server}: {e}")
-                connection.connect()  # Tenta reconectar em caso de erro
+                logger.error(f"Erro ao verificar e-mails em {connection.server} para {username}: {e}")
+                # Tenta reconectar em caso de erro
+                logger.info(f"Tentando reconectar para {username}")
+                connection.connect()
                 
+        if not new_emails:
+            logger.debug(f"Nenhum novo email encontrado em {len(self.connections)} conexões.")
+        else:
+            logger.info(f"Total de novos emails encontrados: {len(new_emails)}")
+            
         return new_emails
         
     def process_emails(self):
         """Processa emails não lidos e envia alertas"""
         new_emails = self.check_new_emails()
         
+        if not new_emails:
+            return
+            
         for email_data in new_emails:
             try:
-                self.telegram_client.send_alert(
+                # Usa telegram_token e chat_id específicos da conta, se disponíveis
+                token = email_data.get('telegram_token')
+                chat_id = email_data.get('telegram_chat_id')
+                
+                logger.info(f"Enviando alerta para {email_data['username']} usando token: {'personalizado' if token else 'padrão'}, chat_id: {chat_id or 'padrão'}")
+                
+                # Log detalhado dos detalhes do alerta a ser enviado
+                logger.debug(f"Detalhes do alerta: Subject='{email_data['subject']}', From='{email_data['from']}', Body Length={len(email_data['body']) if email_data['body'] else 0}")
+                
+                result = self.telegram_client.send_alert(
                     subject=email_data['subject'],
                     from_addr=email_data['from'],
-                    body=email_data['body']
+                    body=email_data['body'],
+                    token=token,
+                    chat_id=chat_id
                 )
+                
+                if result:
+                    logger.info(f"Alerta enviado com sucesso para {email_data['username']}")
+                else:
+                    logger.error(f"Falha ao enviar alerta para {email_data['username']}")
+                    
             except Exception as e:
-                logger.error(f"Erro ao processar e-mail: {e}")
+                logger.error(f"Erro ao processar e-mail para {email_data.get('username', 'desconhecido')}: {e}")
                 
     def shutdown(self):
-        """Encerra conexões IMAP"""
-        if self.primary:
-            self.primary.disconnect()
-        if self.secondary:
-            self.secondary.disconnect()
+        """Encerra todas as conexões IMAP"""
+        for username, connection in self.connections.items():
+            connection.disconnect()
 
     def diagnose_connections(self) -> Dict:
         """Realiza diagnóstico de todas as conexões"""
-        return {
-            'primary': self.primary.diagnose_connection() if self.primary else None,
-            'secondary': self.secondary.diagnose_connection() if self.secondary else None
-        }
+        return {username: connection.diagnose_connection() for username, connection in self.connections.items()}
 
 def decode_email_header(header):
     """Decodifica cabeçalhos de e-mail"""

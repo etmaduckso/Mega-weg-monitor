@@ -34,6 +34,7 @@ class IMAPConfig:
     password: str
     is_active: bool
     telegram_chat_id: str = ""  # Chat ID específico para esta conta de email
+    telegram_token: str = ""    # Token específico para esta conta de email
 
 @dataclass
 class TelegramConfig:
@@ -114,7 +115,8 @@ class IMAPMonitor:
                     'subject': subject,
                     'sender': sender,
                     'server': self.config.server,
-                    'date': date_str
+                    'date': date_str,
+                    'username': self.config.username  # Adicionar o campo username para identificar a conta
                 })
             
             return new_emails
@@ -181,6 +183,7 @@ class TelegramNotifier:
 
 class EmailMonitoringService:
     def __init__(self):
+        self.imap_config_map = {}  # Mapa para associar usernames a suas configurações
         self.config = self._load_config()
         self.monitors: List[IMAPMonitor] = []
         self.notifier = TelegramNotifier(self.config['telegram'])
@@ -219,18 +222,23 @@ class EmailMonitoringService:
         for section in config.sections():
             if section.startswith('IMAP_'):
                 try:
-                    imap_configs.append(IMAPConfig(
+                    imap_config = IMAPConfig(
                         server=config[section]['server'],
                         port=int(config[section]['port']),
                         username=config[section]['username'],
                         password=config[section]['password'],
                         is_active=config[section].getboolean('is_active', True),
-                        telegram_chat_id=config[section].get('telegram_chat_id', '')
-                    ))
+                        telegram_chat_id=config[section].get('telegram_chat_id', ''),
+                        telegram_token=config[section].get('telegram_token', '')
+                    )
+                    imap_configs.append(imap_config)
+                    # Mapear o username para sua configuração
+                    self.imap_config_map[imap_config.username] = imap_config
+                    
                     chat_id_info = ""
-                    if 'telegram_chat_id' in config[section] and config[section]['telegram_chat_id']:
-                        chat_id_info = f" (Chat ID específico: {config[section]['telegram_chat_id']})"
-                    logging.info(f"Configuração IMAP carregada para: {config[section]['server']}{chat_id_info}")
+                    if imap_config.telegram_chat_id:
+                        chat_id_info = f" (Chat ID específico: {imap_config.telegram_chat_id})"
+                    logging.info(f"Configuração IMAP carregada para: {imap_config.username} em {imap_config.server}{chat_id_info}")
                 except Exception as e:
                     logging.error(f"Erro ao carregar configuração IMAP para {section}: {str(e)}")
         
@@ -257,9 +265,9 @@ class EmailMonitoringService:
                 monitor = IMAPMonitor(imap_config)
                 if await monitor.connect():
                     self.monitors.append(monitor)
-                    logging.info(f"Monitor para {imap_config.server} inicializado")
+                    logging.info(f"Monitor para {imap_config.server} ({imap_config.username}) inicializado")
                 else:
-                    logging.error(f"Falha ao inicializar monitor para {imap_config.server}")
+                    logging.error(f"Falha ao inicializar monitor para {imap_config.server} ({imap_config.username})")
     
     def should_continue(self) -> bool:
         """
@@ -271,44 +279,40 @@ class EmailMonitoringService:
     
     async def monitor_emails(self):
         """Monitora os emails e envia notificações via Telegram"""
-        # Cria um dicionário para associar monitores aos seus respectivos configs
-        monitor_configs = {monitor: config for monitor, config in zip(self.monitors, [c for c in self.config['imap'] if c.is_active])}
-        
         while self.should_continue():
             try:
                 # Coleta emails de todos os monitores
-                results = []
+                all_emails = []
                 for monitor in self.monitors:
                     emails = await monitor.check_emails()
-                    for email_data in emails:
-                        # Adiciona o config do monitor a cada email para podermos acessar o chat_id específico
-                        email_data['monitor_config'] = monitor_configs[monitor]
-                    results.append(emails)
+                    all_emails.extend(emails)
                 
                 # Processa todos os emails coletados
-                for emails in results:
-                    for email_data in emails:
-                        message = (
-                            f"📨 Novo email de {email_data['sender']}\n"
-                            f"📝 Assunto: {email_data['subject']}\n"
-                            f"🌐 Servidor: {email_data['server']}\n"
-                            f"📅 Data: {email_data['date']}"
-                        )
-                        
-                        # Verifica se existe um chat_id específico para esta conta
-                        monitor_config = email_data['monitor_config']
-                        if monitor_config.telegram_chat_id:
-                            # Cria um notificador temporário com o chat_id específico
-                            specific_notifier = TelegramNotifier(TelegramConfig(
-                                token=self.config['telegram'].token,
-                                chat_id=monitor_config.telegram_chat_id
-                            ))
-                            await specific_notifier.send_notification(message)
-                            logging.info(f"Notificação enviada para chat_id específico: {monitor_config.telegram_chat_id}")
-                        else:
-                            # Usa o notificador padrão (chat_id global)
-                            await self.notifier.send_notification(message)
-                            logging.info(f"Notificação enviada para chat_id global: {self.config['telegram'].chat_id}")
+                for email_data in all_emails:
+                    # Criar mensagem de notificação
+                    message = (
+                        f"📨 Novo email de {email_data['sender']}\n"
+                        f"📝 Assunto: {email_data['subject']}\n"
+                        f"🌐 Servidor: {email_data['server']}\n"
+                        f"📅 Data: {email_data['date']}"
+                    )
+                    
+                    # Obter a configuração associada a este email
+                    username = email_data.get('username', '')
+                    imap_config = self.imap_config_map.get(username)
+                    
+                    if imap_config and imap_config.telegram_chat_id:
+                        # Se esta conta de email tem um chat_id específico, usar ele
+                        specific_notifier = TelegramNotifier(TelegramConfig(
+                            token=imap_config.telegram_token or self.config['telegram'].token,
+                            chat_id=imap_config.telegram_chat_id
+                        ))
+                        await specific_notifier.send_notification(message)
+                        logging.info(f"Notificação enviada para chat_id específico: {imap_config.telegram_chat_id} (email: {username})")
+                    else:
+                        # Caso contrário, usar o chat_id global
+                        await self.notifier.send_notification(message)
+                        logging.info(f"Notificação enviada para chat_id global: {self.config['telegram'].chat_id}")
                 
                 # Aguarda antes de verificar novamente
                 await asyncio.sleep(60)  # Verifica a cada minuto
