@@ -9,6 +9,8 @@ import requests
 import locale
 import asyncio
 import configparser
+import signal
+import sys
 from datetime import datetime, timedelta
 from email.header import decode_header
 from typing import List, Dict
@@ -18,6 +20,9 @@ from dataclasses import dataclass
 os.environ['LANG'] = 'pt_BR.UTF-8'
 os.environ['LC_ALL'] = 'pt_BR.UTF-8'
 
+# Verificar que o diretório de logs existe
+os.makedirs('logs', exist_ok=True)
+
 # Configurar logging
 logging.basicConfig(
     level=logging.INFO,
@@ -25,6 +30,18 @@ logging.basicConfig(
     handlers=[logging.FileHandler('logs/wegnots.log'), logging.StreamHandler()],
     datefmt='%A, %d de %B de %Y %H:%M'
 )
+
+# Variável global para controlar o encerramento gracioso
+running = True
+
+def signal_handler(sig, frame):
+    """Manipulador de sinais para encerramento gracioso"""
+    global running
+    logging.info("Sinal de encerramento recebido. Encerrando monitoramento...")
+    running = False
+
+# Registra o handler de sinal para encerramento gracioso (Ctrl+C)
+signal.signal(signal.SIGINT, signal_handler)
 
 @dataclass
 class IMAPConfig:
@@ -67,6 +84,74 @@ def decode_email_header(header):
     
     return ' '.join(decoded_parts)
 
+def escape_markdown(text: str) -> str:
+    """Escapa caracteres especiais do Markdown V2 do Telegram."""
+    if not text:
+        return ""
+    # Escape backslash first
+    text = text.replace('\\', '\\\\')
+    special_chars = ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!', '@']
+    for char in special_chars:
+        text = text.replace(char, f'\\{char}')
+    return text
+
+def send_telegram_notification(config: TelegramConfig, message: str) -> bool:
+    """Envia uma notificação via Telegram de forma síncrona"""
+    url = f"https://api.telegram.org/bot{config.token}/sendMessage"
+    try:
+        response = requests.post(url, json={
+            'chat_id': config.chat_id,
+            'text': message,
+            'parse_mode': 'MarkdownV2',
+            'disable_web_page_preview': True
+        }, timeout=10)
+        
+        if response.status_code == 200:
+            logging.info(f"Notificação enviada com sucesso para chat_id {config.chat_id}")
+            return True
+        else:
+            logging.error(f"Erro ao enviar notificação: {response.status_code} - {response.text}")
+            return False
+    except Exception as e:
+        logging.error(f"Exceção ao enviar notificação: {e}")
+        return False
+
+def send_system_startup_notification(config: TelegramConfig, active_accounts=None) -> bool:
+    """
+    Envia notificação de inicialização do sistema.
+    Para o caso do simple_monitor que usa a classe TelegramConfig diretamente.
+    """
+    current_time = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+    message = (
+        "🟢 *WegNots Monitor Iniciado*\n\n"
+        f"⏰ {escape_markdown(current_time)}\n"
+        "✅ Sistema de monitoramento iniciado com sucesso\\.\n"
+        "✉️ Monitorando e\\-mails\\.\\.\\."
+    )
+    
+    # Adiciona informação sobre as contas monitoradas
+    if active_accounts:
+        message += f"\n\n📨 Contas monitoradas: {len(active_accounts)}"
+        for i, account in enumerate(active_accounts, 1):
+            message += f"\n   {i}\\. {escape_markdown(account)}"
+    
+    return send_telegram_notification(config, message)
+
+def send_system_shutdown_notification(config: TelegramConfig) -> bool:
+    """
+    Envia notificação de encerramento do sistema.
+    Para o caso do simple_monitor que usa a classe TelegramConfig diretamente.
+    """
+    current_time = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+    message = (
+        "🔴 *WegNots Monitor Encerrado*\n\n"
+        f"⏰ {escape_markdown(current_time)}\n"
+        "✅ Sistema encerrado de forma segura\\.\n"
+        "🔔 Monitoramento interrompido\\."
+    )
+    
+    return send_telegram_notification(config, message)
+
 class IMAPMonitor:
     def __init__(self, config: IMAPConfig):
         self.config = config
@@ -84,6 +169,20 @@ class IMAPMonitor:
             logging.error(f"Erro ao conectar ao servidor {self.config.server}: {str(e)}")
             self.connected = False
             return False
+    
+    def disconnect(self):
+        """Desconecta do servidor IMAP de forma segura"""
+        if self.imap and self.connected:
+            try:
+                self.imap.close()
+                self.imap.logout()
+                logging.info(f"Desconectado do servidor {self.config.server}")
+                self.connected = False
+                return True
+            except Exception as e:
+                logging.error(f"Erro ao desconectar do servidor {self.config.server}: {str(e)}")
+                return False
+        return True
 
     async def check_emails(self):
         if not self.connected:
@@ -260,22 +359,100 @@ class EmailMonitoringService:
         }
     
     async def initialize(self):
+        """Inicializa todos os monitores e envia notificação de inicialização"""
+        active_accounts = []
+        
+        # Mapeamento de chat_ids específicos para as contas que eles monitoram
+        specific_targets = {}
+        
         for imap_config in self.config['imap']:
             if imap_config.is_active:
                 monitor = IMAPMonitor(imap_config)
                 if await monitor.connect():
                     self.monitors.append(monitor)
+                    active_accounts.append(imap_config.username)
+                    
+                    # Se essa conta tem configuração específica de Telegram, adiciona ao mapeamento
+                    if imap_config.telegram_chat_id and imap_config.telegram_token:
+                        key = (imap_config.telegram_chat_id, imap_config.telegram_token)
+                        if key not in specific_targets:
+                            specific_targets[key] = []
+                        specific_targets[key].append(imap_config.username)
+                    
                     logging.info(f"Monitor para {imap_config.server} ({imap_config.username}) inicializado")
                 else:
                     logging.error(f"Falha ao inicializar monitor para {imap_config.server} ({imap_config.username})")
+        
+        # Envia notificação global
+        send_system_startup_notification(self.config['telegram'], active_accounts)
+        
+        # Envia notificações específicas para cada destinatário com token personalizado
+        for (chat_id, token), accounts in specific_targets.items():
+            if not accounts:
+                continue
+                
+            config = TelegramConfig(token=token, chat_id=chat_id)
+            send_system_startup_notification(config, accounts)
     
     def should_continue(self) -> bool:
         """
-        Checks if the monitoring service should continue running.
-        This can be extended with more conditions like checking a status file
-        or system health indicators.
+        Verifica se o serviço de monitoramento deve continuar executando.
+        Esta função pode ser estendida com mais condições como verificar um arquivo
+        de status ou indicadores de saúde do sistema.
         """
-        return self.active and any(monitor.connected for monitor in self.monitors)
+        return self.active and running and any(monitor.connected for monitor in self.monitors)
+    
+    async def shutdown(self):
+        """Encerra todas as conexões IMAP de forma segura e envia notificação de encerramento"""
+        logging.info("Iniciando procedimento de encerramento...")
+        
+        # Desconecta todos os monitores
+        for monitor in self.monitors:
+            monitor.disconnect()
+        
+        # Mapeamento de chat_ids específicos para as contas que eles monitoram
+        specific_targets = {}
+        
+        # Agrupa contas por chat_id/token específico
+        for username, imap_config in self.imap_config_map.items():
+            if imap_config.telegram_chat_id and imap_config.telegram_token and imap_config.is_active:
+                key = (imap_config.telegram_chat_id, imap_config.telegram_token)
+                if key not in specific_targets:
+                    specific_targets[key] = []
+                specific_targets[key].append(username)
+        
+        # Envia notificação global de encerramento
+        send_system_shutdown_notification(self.config['telegram'])
+        
+        # Envia notificações específicas de encerramento
+        for (chat_id, token), accounts in specific_targets.items():
+            if not accounts:
+                continue
+                
+            # Cria uma mensagem personalizada para este destinatário
+            current_time = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+            
+            # Mensagem base
+            message = (
+                "🔴 *WegNots Monitor Encerrado*\n\n"
+                f"⏰ {escape_markdown(current_time)}\n"
+                "✅ Sistema encerrado de forma segura\\.\n"
+                "🔔 Monitoramento interrompido\\."
+            )
+            
+            # Adiciona informação sobre as contas que estavam sendo monitoradas
+            if len(accounts) > 1:
+                message += f"\n\n📨 O monitoramento das seguintes contas foi encerrado:"
+                for i, account in enumerate(accounts, 1):
+                    message += f"\n   {i}\\. {escape_markdown(account)}"
+            else:
+                message += f"\n\n📨 O monitoramento da conta {escape_markdown(accounts[0])} foi encerrado\\."
+                
+            # Envia a notificação personalizada
+            config = TelegramConfig(token=token, chat_id=chat_id)
+            send_telegram_notification(config, message)
+        
+        logging.info("Sistema encerrado com sucesso")
     
     async def monitor_emails(self):
         """Monitora os emails e envia notificações via Telegram"""
@@ -321,21 +498,33 @@ class EmailMonitoringService:
                 # Se houver um erro, espera um pouco antes de tentar novamente
                 await asyncio.sleep(10)
         
-        logging.info("Serviço de monitoramento encerrado")
+        logging.info("Loop de monitoramento encerrado")
+        # Executa processo de encerramento adequado
+        await self.shutdown()
 
 async def main():
-    service = EmailMonitoringService()
-    await service.initialize()
-    await service.monitor_emails()
+    try:
+        logging.info("=" * 60)
+        logging.info(f"Iniciando WegNots Monitor (simple_monitor) em {datetime.now()}")
+        logging.info("=" * 60)
+        
+        service = EmailMonitoringService()
+        await service.initialize()
+        await service.monitor_emails()
+        
+        return 0
+    except Exception as e:
+        logging.exception(f"Erro fatal durante execução: {e}")
+        return 1
 
 if __name__ == "__main__":
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.FileHandler('wegnots.log'),
-            logging.StreamHandler()
-        ]
-    )
-    
-    asyncio.run(main())
+    try:
+        exit_code = asyncio.run(main())
+        logging.info(f"Programa encerrado com código de saída: {exit_code}")
+        sys.exit(exit_code)
+    except KeyboardInterrupt:
+        logging.info("Programa interrompido pelo usuário")
+        sys.exit(0)
+    except Exception as e:
+        logging.exception(f"Erro não tratado: {e}")
+        sys.exit(1)
