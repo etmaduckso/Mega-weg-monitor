@@ -563,6 +563,8 @@ def choose_imap_server() -> Optional[Dict]:
         if 1 <= choice <= len(IMAP_SERVERS):
             server_key = list(IMAP_SERVERS.keys())[choice - 1]
             server = IMAP_SERVERS[server_key]
+
+            
             
             # Mostra instruções específicas
             print("\nInstruções importantes:")

@@ -1,0 +1,206 @@
+2025-04-30 12:08:03,377 - wegnots.diagnosis - INFO - ============================================================
+2025-04-30 12:08:03,377 - wegnots.diagnosis - INFO - Iniciando Diagn�stico de Email WegNots em 2025-04-30 12:08:03.377780
+2025-04-30 12:08:03,378 - wegnots.diagnosis - INFO - ============================================================
+2025-04-30 12:10:13,686 - wegnots.diagnosis - INFO - ============================================================
+2025-04-30 12:10:13,686 - wegnots.diagnosis - INFO - Iniciando Diagn�stico de Email WegNots em 2025-04-30 12:10:13.686941
+2025-04-30 12:10:13,687 - wegnots.diagnosis - INFO - ============================================================
+2025-04-30 12:10:13,687 - wegnots.diagnosis - ERROR - Nenhuma configura��o IMAP v�lida encontrada em config.ini
+2025-04-30 12:11:59,321 - wegnots.diagnosis - INFO - ============================================================
+2025-04-30 12:11:59,321 - wegnots.diagnosis - INFO - Iniciando Diagn�stico de Email WegNots em 2025-04-30 12:11:59.321749
+2025-04-30 12:11:59,322 - wegnots.diagnosis - INFO - ============================================================
+2025-04-30 12:11:59,323 - wegnots.diagnosis - INFO - Carregada configura��o para IMAP_PRIMARY (sooretama@megasec.com.br)
+2025-04-30 12:11:59,323 - wegnots.diagnosis - INFO - Carregada configura��o para IMAP_sooretama1@megasec.com.br (sooretama1@megasec.com.br)
+2025-04-30 12:11:59,324 - wegnots.diagnosis - INFO - Carregada configura��o para IMAP_sooretama@megasec.com.br (sooretama@megasec.com.br)
+2025-04-30 12:11:59,324 - wegnots.diagnosis - INFO - Carregada configura��o para IMAP_getconexoes@gmail.com (getconexoes@gmail.com)
+2025-04-30 12:11:59,324 - wegnots.diagnosis - INFO - Verificando as seguintes contas de email:
+2025-04-30 12:11:59,325 - wegnots.diagnosis - INFO -   - sooretama@megasec.com.br (Token Telegram: Padr�o)
+2025-04-30 12:11:59,325 - wegnots.diagnosis - INFO -   - sooretama1@megasec.com.br (Token Telegram: Personalizado)
+2025-04-30 12:11:59,325 - wegnots.diagnosis - INFO -   - sooretama@megasec.com.br (Token Telegram: Personalizado)
+2025-04-30 12:11:59,325 - wegnots.diagnosis - INFO -   - getconexoes@gmail.com (Token Telegram: Padr�o)
+2025-04-30 12:11:59,326 - wegnots.diagnosis - INFO - 
+Testando conex�o para IMAP_PRIMARY...
+2025-04-30 12:11:59,326 - wegnots.diagnosis - INFO - Testando conex�o com mail.megasec.com.br para sooretama@megasec.com.br...
+2025-04-30 12:12:00,191 - wegnots.email_handler - INFO - Conectado ao servidor IMAP mail.megasec.com.br
+2025-04-30 12:12:01,683 - wegnots.diagnosis - INFO - Diagn�stico para sooretama@megasec.com.br:
+2025-04-30 12:12:01,992 - wegnots.diagnosis - INFO - Inbox cont�m 2 mensagens totais
+2025-04-30 12:12:02,427 - wegnots.email_handler - INFO - Desconectado do servidor IMAP mail.megasec.com.br
+2025-04-30 12:12:02,427 - wegnots.diagnosis - INFO - 
+Testando conex�o para IMAP_sooretama1@megasec.com.br...
+2025-04-30 12:12:02,428 - wegnots.diagnosis - INFO - Testando conex�o com mail.megasec.com.br para sooretama1@megasec.com.br...
+2025-04-30 12:12:03,144 - wegnots.email_handler - INFO - Conectado ao servidor IMAP mail.megasec.com.br
+2025-04-30 12:12:04,583 - wegnots.diagnosis - INFO - Diagn�stico para sooretama1@megasec.com.br:
+2025-04-30 12:12:04,882 - wegnots.diagnosis - INFO - Inbox cont�m 3 mensagens totais
+2025-04-30 12:12:05,310 - wegnots.email_handler - INFO - Desconectado do servidor IMAP mail.megasec.com.br
+2025-04-30 12:12:05,311 - wegnots.diagnosis - INFO - 
+Testando conex�o para IMAP_sooretama@megasec.com.br...
+2025-04-30 12:12:05,311 - wegnots.diagnosis - INFO - Testando conex�o com mail.megasec.com.br para sooretama@megasec.com.br...
+2025-04-30 12:12:06,026 - wegnots.email_handler - INFO - Conectado ao servidor IMAP mail.megasec.com.br
+2025-04-30 12:12:07,454 - wegnots.diagnosis - INFO - Diagn�stico para sooretama@megasec.com.br:
+2025-04-30 12:12:07,775 - wegnots.diagnosis - INFO - Inbox cont�m 2 mensagens totais
+2025-04-30 12:12:08,212 - wegnots.email_handler - INFO - Desconectado do servidor IMAP mail.megasec.com.br
+2025-04-30 12:12:08,212 - wegnots.diagnosis - INFO - 
+Testando conex�o para IMAP_getconexoes@gmail.com...
+2025-04-30 12:12:08,213 - wegnots.diagnosis - INFO - Testando conex�o com imap.gmail.com para getconexoes@gmail.com...
+2025-04-30 12:12:08,216 - wegnots.diagnosis - INFO - 
+============================================================
+2025-04-30 12:12:08,217 - wegnots.diagnosis - INFO - Diagn�stico conclu�do. Pelo menos uma conex�o foi bem-sucedida.
+2025-04-30 12:12:08,217 - wegnots.diagnosis - INFO - Verifique o arquivo email_diagnosis.log para mais detalhes.
+2025-04-30 12:12:08,217 - wegnots.diagnosis - INFO - ============================================================
+2025-04-30 12:14:45,464 - wegnots.diagnosis - INFO - ============================================================
+2025-04-30 12:14:45,464 - wegnots.diagnosis - INFO - Iniciando Diagnóstico de Email WegNots em 2025-04-30 12:14:45.464881
+2025-04-30 12:14:45,465 - wegnots.diagnosis - INFO - ============================================================
+2025-04-30 12:14:45,466 - wegnots.diagnosis - INFO - Carregada configuração para IMAP_PRIMARY (sooretama@megasec.com.br)
+2025-04-30 12:14:45,466 - wegnots.diagnosis - INFO - Carregada configuração para IMAP_sooretama1@megasec.com.br (sooretama1@megasec.com.br)
+2025-04-30 12:14:45,466 - wegnots.diagnosis - INFO - Carregada configuração para IMAP_sooretama@megasec.com.br (sooretama@megasec.com.br)
+2025-04-30 12:14:45,467 - wegnots.diagnosis - INFO - Carregada configuração para IMAP_getconexoes@gmail.com (getconexoes@gmail.com)
+2025-04-30 12:14:45,467 - wegnots.diagnosis - INFO - Verificando as seguintes contas de email:
+2025-04-30 12:14:45,467 - wegnots.diagnosis - INFO -   - sooretama@megasec.com.br (Token Telegram: Padrão)
+2025-04-30 12:14:45,467 - wegnots.diagnosis - INFO -   - sooretama1@megasec.com.br (Token Telegram: Personalizado)
+2025-04-30 12:14:45,468 - wegnots.diagnosis - INFO -   - sooretama@megasec.com.br (Token Telegram: Personalizado)
+2025-04-30 12:14:45,468 - wegnots.diagnosis - INFO -   - getconexoes@gmail.com (Token Telegram: Padrão)
+2025-04-30 12:14:45,468 - wegnots.diagnosis - INFO - 
+Testando conexão para IMAP_PRIMARY...
+2025-04-30 12:14:45,468 - wegnots.diagnosis - INFO - Testando conexão com mail.megasec.com.br para sooretama@megasec.com.br...
+2025-04-30 12:14:46,357 - wegnots.email_handler - INFO - Conectado ao servidor IMAP mail.megasec.com.br
+2025-04-30 12:14:46,357 - wegnots.diagnosis - INFO - ✓ Conexão bem-sucedida com mail.megasec.com.br
+2025-04-30 12:14:47,793 - wegnots.diagnosis - INFO - Diagnóstico para sooretama@megasec.com.br:
+2025-04-30 12:14:47,794 - wegnots.diagnosis - INFO -   ✓ Conexão SSL: True
+2025-04-30 12:14:47,794 - wegnots.diagnosis - INFO -   ✓ Autenticação: True
+2025-04-30 12:14:47,794 - wegnots.diagnosis - INFO -   ✓ Acesso à INBOX: True
+2025-04-30 12:14:47,795 - wegnots.diagnosis - INFO -   ✓ Listagem de emails: True
+2025-04-30 12:14:47,795 - wegnots.diagnosis - INFO -   ✓ Emails recentes: 2
+2025-04-30 12:14:47,795 - wegnots.diagnosis - INFO -   ✓ Email mais recente: 'Teste OMEGA' de Gustavo Lago <folhafinancas@gmail.com> em Sun, 27 Apr 2025 00:36:43 -0300
+2025-04-30 12:14:48,077 - wegnots.diagnosis - INFO - Inbox contém 2 mensagens totais
+2025-04-30 12:14:48,228 - wegnots.diagnosis - INFO -   ✓ Emails não lidos: 0
+2025-04-30 12:14:48,228 - wegnots.diagnosis - WARNING -   ⚠ Não há emails não lidos. O sistema só detecta emails não lidos ou recentes.
+2025-04-30 12:14:48,368 - wegnots.diagnosis - INFO -   ✓ Emails das últimas 24h: 0
+2025-04-30 12:14:48,368 - wegnots.diagnosis - WARNING -   ⚠ Não há emails das últimas 24h. O sistema não detectará emails antigos.
+2025-04-30 12:14:48,510 - wegnots.email_handler - INFO - Desconectado do servidor IMAP mail.megasec.com.br
+2025-04-30 12:14:48,510 - wegnots.diagnosis - INFO - 
+Testando conexão para IMAP_sooretama1@megasec.com.br...
+2025-04-30 12:14:48,511 - wegnots.diagnosis - INFO - Testando conexão com mail.megasec.com.br para sooretama1@megasec.com.br...
+2025-04-30 12:14:49,227 - wegnots.email_handler - INFO - Conectado ao servidor IMAP mail.megasec.com.br
+2025-04-30 12:14:49,228 - wegnots.diagnosis - INFO - ✓ Conexão bem-sucedida com mail.megasec.com.br
+2025-04-30 12:14:50,650 - wegnots.diagnosis - INFO - Diagnóstico para sooretama1@megasec.com.br:
+2025-04-30 12:14:50,650 - wegnots.diagnosis - INFO -   ✓ Conexão SSL: True
+2025-04-30 12:14:50,650 - wegnots.diagnosis - INFO -   ✓ Autenticação: True
+2025-04-30 12:14:50,650 - wegnots.diagnosis - INFO -   ✓ Acesso à INBOX: True
+2025-04-30 12:14:50,651 - wegnots.diagnosis - INFO -   ✓ Listagem de emails: True
+2025-04-30 12:14:50,651 - wegnots.diagnosis - INFO -   ✓ Emails recentes: 3
+2025-04-30 12:14:50,651 - wegnots.diagnosis - INFO -   ✓ Email mais recente: 'Teste Alfa' de Gustavo Lago <folhafinancas@gmail.com> em Tue, 29 Apr 2025 21:46:22 -0300
+2025-04-30 12:14:50,946 - wegnots.diagnosis - INFO - Inbox contém 3 mensagens totais
+2025-04-30 12:14:51,088 - wegnots.diagnosis - INFO -   ✓ Emails não lidos: 0
+2025-04-30 12:14:51,089 - wegnots.diagnosis - WARNING -   ⚠ Não há emails não lidos. O sistema só detecta emails não lidos ou recentes.
+2025-04-30 12:14:51,248 - wegnots.diagnosis - INFO -   ✓ Emails das últimas 24h: 1
+2025-04-30 12:14:51,389 - wegnots.email_handler - INFO - Desconectado do servidor IMAP mail.megasec.com.br
+2025-04-30 12:14:51,389 - wegnots.diagnosis - INFO - 
+Testando conexão para IMAP_sooretama@megasec.com.br...
+2025-04-30 12:14:51,389 - wegnots.diagnosis - INFO - Testando conexão com mail.megasec.com.br para sooretama@megasec.com.br...
+2025-04-30 12:14:52,113 - wegnots.email_handler - INFO - Conectado ao servidor IMAP mail.megasec.com.br
+2025-04-30 12:14:52,113 - wegnots.diagnosis - INFO - ✓ Conexão bem-sucedida com mail.megasec.com.br
+2025-04-30 12:14:53,550 - wegnots.diagnosis - INFO - Diagnóstico para sooretama@megasec.com.br:
+2025-04-30 12:14:53,550 - wegnots.diagnosis - INFO -   ✓ Conexão SSL: True
+2025-04-30 12:14:53,551 - wegnots.diagnosis - INFO -   ✓ Autenticação: True
+2025-04-30 12:14:53,551 - wegnots.diagnosis - INFO -   ✓ Acesso à INBOX: True
+2025-04-30 12:14:53,551 - wegnots.diagnosis - INFO -   ✓ Listagem de emails: True
+2025-04-30 12:14:53,551 - wegnots.diagnosis - INFO -   ✓ Emails recentes: 2
+2025-04-30 12:14:53,552 - wegnots.diagnosis - INFO -   ✓ Email mais recente: 'Teste OMEGA' de Gustavo Lago <folhafinancas@gmail.com> em Sun, 27 Apr 2025 00:36:43 -0300
+2025-04-30 12:14:53,894 - wegnots.diagnosis - INFO - Inbox contém 2 mensagens totais
+2025-04-30 12:14:54,035 - wegnots.diagnosis - INFO -   ✓ Emails não lidos: 0
+2025-04-30 12:14:54,036 - wegnots.diagnosis - WARNING -   ⚠ Não há emails não lidos. O sistema só detecta emails não lidos ou recentes.
+2025-04-30 12:14:54,181 - wegnots.diagnosis - INFO -   ✓ Emails das últimas 24h: 0
+2025-04-30 12:14:54,181 - wegnots.diagnosis - WARNING -   ⚠ Não há emails das últimas 24h. O sistema não detectará emails antigos.
+2025-04-30 12:14:54,349 - wegnots.email_handler - INFO - Desconectado do servidor IMAP mail.megasec.com.br
+2025-04-30 12:14:54,349 - wegnots.diagnosis - INFO - 
+Testando conexão para IMAP_getconexoes@gmail.com...
+2025-04-30 12:14:54,349 - wegnots.diagnosis - INFO - Testando conexão com imap.gmail.com para getconexoes@gmail.com...
+2025-04-30 12:14:54,350 - wegnots.diagnosis - ERROR - ✗ Falha na conexão com imap.gmail.com
+2025-04-30 12:14:54,350 - wegnots.diagnosis - INFO - 
+============================================================
+2025-04-30 12:14:54,350 - wegnots.diagnosis - INFO - Diagnóstico concluído. Pelo menos uma conexão foi bem-sucedida.
+2025-04-30 12:14:54,351 - wegnots.diagnosis - INFO - Verifique o arquivo email_diagnosis.log para mais detalhes.
+2025-04-30 12:14:54,351 - wegnots.diagnosis - INFO - ============================================================
+2025-04-30 14:16:08,933 - wegnots.diagnosis - INFO - ============================================================
+2025-04-30 14:16:08,936 - wegnots.diagnosis - INFO - Iniciando Diagnóstico de Email WegNots em 2025-04-30 14:16:08.936356
+2025-04-30 14:16:08,936 - wegnots.diagnosis - INFO - ============================================================
+2025-04-30 14:16:08,938 - wegnots.diagnosis - INFO - Carregada configuração para IMAP_PRIMARY (sooretama@megasec.com.br)
+2025-04-30 14:16:08,938 - wegnots.diagnosis - INFO - Carregada configuração para IMAP_sooretama1@megasec.com.br (sooretama1@megasec.com.br)
+2025-04-30 14:16:08,938 - wegnots.diagnosis - INFO - Carregada configuração para IMAP_sooretama@megasec.com.br (sooretama@megasec.com.br)
+2025-04-30 14:16:08,939 - wegnots.diagnosis - INFO - Carregada configuração para IMAP_getconexoes@gmail.com (getconexoes@gmail.com)
+2025-04-30 14:16:08,939 - wegnots.diagnosis - INFO - Verificando as seguintes contas de email:
+2025-04-30 14:16:08,939 - wegnots.diagnosis - INFO -   - sooretama@megasec.com.br (Token Telegram: Padrão)
+2025-04-30 14:16:08,939 - wegnots.diagnosis - INFO -   - sooretama1@megasec.com.br (Token Telegram: Personalizado)
+2025-04-30 14:16:08,939 - wegnots.diagnosis - INFO -   - sooretama@megasec.com.br (Token Telegram: Personalizado)
+2025-04-30 14:16:08,940 - wegnots.diagnosis - INFO -   - getconexoes@gmail.com (Token Telegram: Padrão)
+2025-04-30 14:16:08,940 - wegnots.diagnosis - INFO - 
+Testando conexão para IMAP_PRIMARY...
+2025-04-30 14:16:08,940 - wegnots.diagnosis - INFO - Testando conexão com mail.megasec.com.br para sooretama@megasec.com.br...
+2025-04-30 14:16:09,827 - wegnots.email_handler - INFO - Conectado ao servidor IMAP mail.megasec.com.br
+2025-04-30 14:16:09,827 - wegnots.diagnosis - INFO - ✓ Conexão bem-sucedida com mail.megasec.com.br
+2025-04-30 14:16:11,238 - wegnots.diagnosis - INFO - Diagnóstico para sooretama@megasec.com.br:
+2025-04-30 14:16:11,238 - wegnots.diagnosis - INFO -   ✓ Conexão SSL: True
+2025-04-30 14:16:11,239 - wegnots.diagnosis - INFO -   ✓ Autenticação: True
+2025-04-30 14:16:11,239 - wegnots.diagnosis - INFO -   ✓ Acesso à INBOX: True
+2025-04-30 14:16:11,239 - wegnots.diagnosis - INFO -   ✓ Listagem de emails: True
+2025-04-30 14:16:11,239 - wegnots.diagnosis - INFO -   ✓ Emails recentes: 3
+2025-04-30 14:16:11,240 - wegnots.diagnosis - INFO -   ✓ Email mais recente: 'Teste Beta' de Folha Bistro <folhabistro@gmail.com> em Wed, 30 Apr 2025 14:12:22 -0300
+2025-04-30 14:16:11,514 - wegnots.diagnosis - INFO - Inbox contém 3 mensagens totais
+2025-04-30 14:16:11,655 - wegnots.diagnosis - INFO -   ✓ Emails não lidos: 0
+2025-04-30 14:16:11,656 - wegnots.diagnosis - WARNING -   ⚠ Não há emails não lidos. O sistema só detecta emails não lidos ou recentes.
+2025-04-30 14:16:11,797 - wegnots.diagnosis - INFO -   ✓ Emails das últimas 24h: 1
+2025-04-30 14:16:11,935 - wegnots.email_handler - INFO - Desconectado do servidor IMAP mail.megasec.com.br
+2025-04-30 14:16:11,935 - wegnots.diagnosis - INFO - 
+Testando conexão para IMAP_sooretama1@megasec.com.br...
+2025-04-30 14:16:11,936 - wegnots.diagnosis - INFO - Testando conexão com mail.megasec.com.br para sooretama1@megasec.com.br...
+2025-04-30 14:16:12,656 - wegnots.email_handler - INFO - Conectado ao servidor IMAP mail.megasec.com.br
+2025-04-30 14:16:12,657 - wegnots.diagnosis - INFO - ✓ Conexão bem-sucedida com mail.megasec.com.br
+2025-04-30 14:16:14,062 - wegnots.diagnosis - INFO - Diagnóstico para sooretama1@megasec.com.br:
+2025-04-30 14:16:14,063 - wegnots.diagnosis - INFO -   ✓ Conexão SSL: True
+2025-04-30 14:16:14,063 - wegnots.diagnosis - INFO -   ✓ Autenticação: True
+2025-04-30 14:16:14,063 - wegnots.diagnosis - INFO -   ✓ Acesso à INBOX: True
+2025-04-30 14:16:14,064 - wegnots.diagnosis - INFO -   ✓ Listagem de emails: True
+2025-04-30 14:16:14,064 - wegnots.diagnosis - INFO -   ✓ Emails recentes: 4
+2025-04-30 14:16:14,064 - wegnots.diagnosis - INFO -   ✓ Email mais recente: 'Teste Beta' de Folha Bistro <folhabistro@gmail.com> em Wed, 30 Apr 2025 14:12:22 -0300
+2025-04-30 14:16:14,339 - wegnots.diagnosis - INFO - Inbox contém 4 mensagens totais
+2025-04-30 14:16:14,477 - wegnots.diagnosis - INFO -   ✓ Emails não lidos: 0
+2025-04-30 14:16:14,477 - wegnots.diagnosis - WARNING -   ⚠ Não há emails não lidos. O sistema só detecta emails não lidos ou recentes.
+2025-04-30 14:16:14,616 - wegnots.diagnosis - INFO -   ✓ Emails das últimas 24h: 2
+2025-04-30 14:16:14,756 - wegnots.email_handler - INFO - Desconectado do servidor IMAP mail.megasec.com.br
+2025-04-30 14:16:14,756 - wegnots.diagnosis - INFO - 
+Testando conexão para IMAP_sooretama@megasec.com.br...
+2025-04-30 14:16:14,756 - wegnots.diagnosis - INFO - Testando conexão com mail.megasec.com.br para sooretama@megasec.com.br...
+2025-04-30 14:16:15,468 - wegnots.email_handler - INFO - Conectado ao servidor IMAP mail.megasec.com.br
+2025-04-30 14:16:15,468 - wegnots.diagnosis - INFO - ✓ Conexão bem-sucedida com mail.megasec.com.br
+2025-04-30 14:16:16,867 - wegnots.diagnosis - INFO - Diagnóstico para sooretama@megasec.com.br:
+2025-04-30 14:16:16,867 - wegnots.diagnosis - INFO -   ✓ Conexão SSL: True
+2025-04-30 14:16:16,868 - wegnots.diagnosis - INFO -   ✓ Autenticação: True
+2025-04-30 14:16:16,868 - wegnots.diagnosis - INFO -   ✓ Acesso à INBOX: True
+2025-04-30 14:16:16,868 - wegnots.diagnosis - INFO -   ✓ Listagem de emails: True
+2025-04-30 14:16:16,868 - wegnots.diagnosis - INFO -   ✓ Emails recentes: 3
+2025-04-30 14:16:16,869 - wegnots.diagnosis - INFO -   ✓ Email mais recente: 'Teste Beta' de Folha Bistro <folhabistro@gmail.com> em Wed, 30 Apr 2025 14:12:22 -0300
+2025-04-30 14:16:17,144 - wegnots.diagnosis - INFO - Inbox contém 3 mensagens totais
+2025-04-30 14:16:17,281 - wegnots.diagnosis - INFO -   ✓ Emails não lidos: 0
+2025-04-30 14:16:17,282 - wegnots.diagnosis - WARNING -   ⚠ Não há emails não lidos. O sistema só detecta emails não lidos ou recentes.
+2025-04-30 14:16:17,426 - wegnots.diagnosis - INFO -   ✓ Emails das últimas 24h: 1
+2025-04-30 14:16:17,565 - wegnots.email_handler - INFO - Desconectado do servidor IMAP mail.megasec.com.br
+2025-04-30 14:16:17,566 - wegnots.diagnosis - INFO - 
+Testando conexão para IMAP_getconexoes@gmail.com...
+2025-04-30 14:16:17,566 - wegnots.diagnosis - INFO - Testando conexão com imap.gmail.com para getconexoes@gmail.com...
+2025-04-30 14:16:19,281 - wegnots.email_handler - INFO - Conectado ao servidor IMAP imap.gmail.com
+2025-04-30 14:16:19,281 - wegnots.diagnosis - INFO - ✓ Conexão bem-sucedida com imap.gmail.com
+2025-04-30 14:16:23,075 - wegnots.diagnosis - INFO - Diagnóstico para getconexoes@gmail.com:
+2025-04-30 14:16:23,075 - wegnots.diagnosis - INFO -   ✓ Conexão SSL: True
+2025-04-30 14:16:23,076 - wegnots.diagnosis - INFO -   ✓ Autenticação: True
+2025-04-30 14:16:23,076 - wegnots.diagnosis - INFO -   ✓ Acesso à INBOX: True
+2025-04-30 14:16:23,076 - wegnots.diagnosis - INFO -   ✓ Listagem de emails: True
+2025-04-30 14:16:23,076 - wegnots.diagnosis - INFO -   ✓ Emails recentes: 30
+2025-04-30 14:16:23,076 - wegnots.diagnosis - INFO -   ✓ Email mais recente: 'Teste Beta' de Folha Bistro <folhabistro@gmail.com> em Wed, 30 Apr 2025 14:12:22 -0300
+2025-04-30 14:16:23,748 - wegnots.diagnosis - INFO - Inbox contém 3023 mensagens totais
+2025-04-30 14:16:24,088 - wegnots.diagnosis - INFO -   ✓ Emails não lidos: 51
+2025-04-30 14:16:24,490 - wegnots.diagnosis - INFO -   ✓ Emails das últimas 24h: 32
+2025-04-30 14:16:24,820 - wegnots.email_handler - INFO - Desconectado do servidor IMAP imap.gmail.com
+2025-04-30 14:16:24,821 - wegnots.diagnosis - INFO - 
+============================================================
+2025-04-30 14:16:24,821 - wegnots.diagnosis - INFO - Diagnóstico concluído. Pelo menos uma conexão foi bem-sucedida.
+2025-04-30 14:16:24,822 - wegnots.diagnosis - INFO - Verifique o arquivo email_diagnosis.log para mais detalhes.
+2025-04-30 14:16:24,822 - wegnots.diagnosis - INFO - ============================================================

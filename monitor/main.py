@@ -14,6 +14,7 @@ from datetime import datetime
 from app.core.telegram_client import TelegramClient
 from app.core.email_handler import EmailHandler
 from config_manager import send_system_startup_notification, send_system_shutdown_notification
+from health_server import start_health_server  # Importa o servidor de health check
 
 # Configura log directory
 os.makedirs('logs', exist_ok=True)
@@ -89,6 +90,11 @@ def main():
         logger.info(f"Iniciando WegNots Monitor em {datetime.now()}")
         logger.info("=" * 60)
         
+        # Inicia o servidor de health check para responder ao Docker
+        health_server = start_health_server(port=5000)
+        if not health_server:
+            logger.warning("Não foi possível iniciar o servidor de health check. O contêiner pode ser marcado como unhealthy.")
+        
         # Registra handler de sinal para SIGINT (Ctrl+C)
         signal.signal(signal.SIGINT, signal_handler)
         
@@ -116,6 +122,10 @@ def main():
             token=telegram_config['token'],
             chat_id=telegram_config['chat_id']
         )
+        
+        # Inicializa mapeamentos de token -> chat_id para garantir entregas corretas
+        logger.info("Inicializando mapeamentos de token -> chat_id...")
+        telegram_client.initialize_chat_mappings(imap_configs)
         
         # Inicializa handler de e-mail e configura todas as conexões
         email_handler = EmailHandler(telegram_client)

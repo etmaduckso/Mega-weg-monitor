@@ -1,0 +1,8 @@
+Wednesday, 30 de April de 2025 14:06 - ERROR - Erro não tratado: EmailHandler.__init__() missing 1 required positional argument: 'telegram_client'
+Traceback (most recent call last):
+  File "C:\Users\User\Documents\G.EDUCA\Megasec\WegNots\monitor\simple_monitor.py", line 545, in <module>
+    monitor_unread_emails()
+    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\User\Documents\G.EDUCA\Megasec\WegNots\monitor\simple_monitor.py", line 508, in monitor_unread_emails
+    email_handler = EmailHandler()
+TypeError: EmailHandler.__init__() missing 1 required positional argument: 'telegram_client'

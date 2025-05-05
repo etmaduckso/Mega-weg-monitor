@@ -15,6 +15,7 @@ from datetime import datetime, timedelta
 from email.header import decode_header
 from typing import List, Dict
 from dataclasses import dataclass
+from app.core.email_handler import EmailHandler
 
 # Configurar locale para português
 os.environ['LANG'] = 'pt_BR.UTF-8'
@@ -478,7 +479,7 @@ class EmailMonitoringService:
                     username = email_data.get('username', '')
                     imap_config = self.imap_config_map.get(username)
                     
-                    if imap_config and imap_config.telegram_chat_id:
+                    if imap_config and imap_config.telegram_chat_id:  # Fixed syntax error here (changed && to and)
                         # Se esta conta de email tem um chat_id específico, usar ele
                         specific_notifier = TelegramNotifier(TelegramConfig(
                             token=imap_config.telegram_token or self.config['telegram'].token,
@@ -502,6 +503,29 @@ class EmailMonitoringService:
         # Executa processo de encerramento adequado
         await self.shutdown()
 
+def monitor_unread_emails():
+    """Monitora os últimos 5 emails não lidos a cada 30 segundos."""
+    telegram_client = TelegramNotifier(config=TelegramConfig(token='SEU_TOKEN', chat_id='SEU_CHAT_ID'))
+    email_handler = EmailHandler(telegram_client=telegram_client)
+
+    while True:
+        for account in email_handler.accounts:
+            try:
+                print(f"Verificando emails não lidos para a conta: {account['username']}")
+                unread_emails = email_handler.get_unread_emails(account, limit=5)
+
+                if unread_emails:
+                    print(f"Últimos 5 emails não lidos para {account['username']}:")
+                    for email in unread_emails:
+                        print(f"- De: {email['from']}, Assunto: {email['subject']}, Data: {email['date']}")
+                else:
+                    print(f"Nenhum email não lido encontrado para {account['username']}.")
+            except Exception as e:
+                print(f"Erro ao verificar emails para {account['username']}: {e}")
+
+        print("Aguardando 30 segundos antes da próxima verificação...")
+        time.sleep(30)
+
 async def main():
     try:
         logging.info("=" * 60)
@@ -519,9 +543,7 @@ async def main():
 
 if __name__ == "__main__":
     try:
-        exit_code = asyncio.run(main())
-        logging.info(f"Programa encerrado com código de saída: {exit_code}")
-        sys.exit(exit_code)
+        monitor_unread_emails()
     except KeyboardInterrupt:
         logging.info("Programa interrompido pelo usuário")
         sys.exit(0)

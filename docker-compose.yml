@@ -1,9 +1,8 @@
-version: '3.8'
-
 services:
-  mongodb:
+  mongodb-new:
+    container_name: mongodb-new
     image: mongo:6.0
-    restart: always
+    restart: unless-stopped
     environment:
       - MONGO_INITDB_ROOT_USERNAME=admin
       - MONGO_INITDB_ROOT_PASSWORD=adminpassword
@@ -14,73 +13,92 @@ services:
       - ./monitor/data/fix-mongo.js:/docker-entrypoint-initdb.d/fix-mongo.js:ro
     networks:
       - wegnots-network
+    ports:
+      - "27017:27017"
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: mongosh --eval "db.adminCommand('ping')" --quiet
       interval: 10s
       timeout: 5s
-      retries: 3
-      start_period: 20s
+      retries: 5
+      start_period: 30s
+    command: ["--bind_ip_all", "--wiredTigerCacheSizeGB", "0.5"]
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 256M
 
   monitor:
+    container_name: monitor
     build:
       context: ./monitor
       dockerfile: Dockerfile
-    restart: always
+    restart: unless-stopped
     environment:
-      - MONGODB_URI=mongodb://admin:adminpassword@mongodb:27017/wegnots?authSource=admin
+      - MONGODB_URI=mongodb://admin:adminpassword@mongodb-new:27017/wegnots?authSource=admin
       - FLASK_ENV=production
-      - FLASK_APP=main:app
-      - GUNICORN_WORKERS=4
+      - FLASK_APP=app:create_app()
+      - GUNICORN_WORKERS=2
       - GUNICORN_TIMEOUT=120
-      # Configurações IMAP (substitua com valores reais ou use uma variável de ambiente)
-      - IMAP_SERVER=imap.example.com
-      - IMAP_PORT=993
-      - IMAP_USERNAME=${IMAP_USERNAME:-usuario@example.com}
-      - IMAP_PASSWORD=${IMAP_PASSWORD:-senhaexemplo}
-      - IMAP_CHECK_INTERVAL=60
-      - DEVELOPMENT_MODE=true  # Defina como 'false' em produção
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      - HEALTH_CHECK_HOST=0.0.0.0
     volumes:
-      - ./monitor:/app:rw  # Montagem para desenvolvimento
+      - ./monitor:/app:rw
+      - ./monitor/logs:/app/logs:rw
       - ./monitor/uploads:/app/uploads:rw
+      - ./monitor/config.ini:/app/config.ini:ro
     ports:
       - "5000:5000"
     depends_on:
-      mongodb:
-        condition: service_healthy
+      mongodb-new:
+        condition: service_started
     networks:
       - wegnots-network
     healthcheck:
-      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:5000/health\")'" ]
-      interval: 10s
-      timeout: 5s
+      test: ["CMD", "python", "test_health.py"]
+      interval: 15s
+      timeout: 10s
       retries: 3
-      start_period: 20s
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   admin:
+    container_name: wegnots
     build:
       context: ./wegnots-admin
       dockerfile: Dockerfile
-    restart: always
+    restart: unless-stopped
     ports:
       - "5173:5173"
     environment:
       - VITE_API_URL=http://localhost:5000
-    # Modificando a dependência para iniciar mesmo se o monitor não estiver saudável
     depends_on:
       - monitor
     networks:
       - wegnots-network
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:5173 || exit 1"]
-      interval: 10s
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:5173"]
+      interval: 20s
       timeout: 5s
       retries: 3
-      start_period: 20s
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
 networks:
   wegnots-network:
     driver: bridge
+    name: wegnots-network
 
 volumes:
   mongodb_data:
+    name: wegnots-mongodb-data
   mongodb_config:
+    name: wegnots-mongodb-config

@@ -182,8 +182,13 @@ class IMAPConnection:
 
 class EmailHandler:
     def __init__(self, telegram_client):
-        self.connections = {}  # Dicionário com todas as conexões IMAP
+        self.connections = {}
         self.telegram_client = telegram_client
+        self.processed_emails = {}  # Dictionary to store processed email IDs per account
+        
+    def _get_email_key(self, server, username, email_id):
+        """Generate a unique key for an email"""
+        return f"{server}:{username}:{email_id}"
         
     def setup_connections(self, config_sections):
         """Configura múltiplas conexões IMAP a partir de seções do arquivo de configuração"""
@@ -229,39 +234,28 @@ class EmailHandler:
                     logger.error(f"Falha ao selecionar INBOX para {username}: {status}")
                     continue
                     
-                logger.debug(f"Caixa INBOX selecionada para {username}, contém {selected[0].decode()} mensagens")
+                # Initialize processed emails set for this account if it doesn't exist
+                if username not in self.processed_emails:
+                    self.processed_emails[username] = set()
                 
                 # Estratégia 1: Busca emails não lidos (UNSEEN)
                 status, messages = connection.imap.search(None, 'UNSEEN')
                 email_ids = messages[0].split() if status == 'OK' else []
                 
-                logger.debug(f"Encontrados {len(email_ids)} emails não lidos para {username}")
-                
-                # Estratégia 2: Se não houver emails não lidos, busca emails recentes (últimas 24h)
-                if not email_ids:
-                    from datetime import datetime, timedelta
-                    yesterday = (datetime.now() - timedelta(days=1)).strftime("%d-%b-%Y")
-                    logger.debug(f"Procurando emails recentes desde {yesterday} para {username}")
-                    
-                    status, messages = connection.imap.search(None, f'(SINCE "{yesterday}")')
-                    email_ids = messages[0].split() if status == 'OK' else []
-                    logger.debug(f"Encontrados {len(email_ids)} emails recentes para {username}")
-                
-                # Estratégia 3 (NOVA): Se ainda não encontrou emails, pega os 5 mais recentes
-                if not email_ids:
-                    logger.debug(f"Procurando os 5 emails mais recentes para {username}")
-                    status, messages = connection.imap.search(None, 'ALL')
-                    if status == 'OK':
-                        all_ids = messages[0].split()
-                        # Pega os 5 mais recentes (últimos 5 na ordem dos IDs)
-                        email_ids = all_ids[-5:] if len(all_ids) > 5 else all_ids
-                        logger.debug(f"Pegando os {len(email_ids)} emails mais recentes de {len(all_ids)} totais")
+                # Se não houver emails não lidos, não procuramos mais
+                # Removida a busca por emails das últimas 24h e emails recentes
+                # para evitar processamento duplicado
                 
                 for email_id in email_ids:
                     try:
-                        logger.debug(f"Processando email ID {email_id} para {username}")
-                        status, msg_data = connection.imap.fetch(email_id, '(RFC822)')
+                        email_key = self._get_email_key(connection.server, username, email_id.decode())
                         
+                        # Skip if already processed
+                        if email_key in self.processed_emails[username]:
+                            logger.debug(f"Email {email_id} já processado para {username}")
+                            continue
+                            
+                        status, msg_data = connection.imap.fetch(email_id, '(RFC822)')
                         if status != 'OK' or not msg_data or not msg_data[0]:
                             logger.error(f"Falha ao buscar email ID {email_id} para {username}")
                             continue
@@ -273,7 +267,6 @@ class EmailHandler:
                         from_addr = decode_email_header(message['from'])
                         body = get_email_body(message)
                         
-                        # Log detalhado antes de processar o email
                         logger.info(f"Novo email encontrado para {username}: Subject='{subject}', De='{from_addr}'")
                         
                         new_emails.append({
@@ -283,25 +276,31 @@ class EmailHandler:
                             'subject': subject,
                             'from': from_addr,
                             'body': body,
-                            # Adiciona informações do Telegram específicas dessa conta, se existirem
                             'telegram_chat_id': connection.telegram_chat_id,
-                            'telegram_token': connection.telegram_token
+                            'telegram_token': connection.telegram_token,
+                            'email_key': email_key
                         })
                         
+                        # Mark as read immediately after processing
+                        connection.imap.store(email_id, '+FLAGS', '\\Seen')
+                        # Add to processed set
+                        self.processed_emails[username].add(email_key)
+                        
+                        # Limit the size of processed emails set (keep last 1000 per account)
+                        if len(self.processed_emails[username]) > 1000:
+                            self.processed_emails[username] = set(list(self.processed_emails[username])[-1000:])
+                            
                     except Exception as e:
                         logger.error(f"Erro ao processar email ID {email_id} para {username}: {e}")
                     
             except Exception as e:
                 logger.error(f"Erro ao verificar e-mails em {connection.server} para {username}: {e}")
-                # Tenta reconectar em caso de erro
                 logger.info(f"Tentando reconectar para {username}")
                 connection.connect()
                 
-        if not new_emails:
-            logger.debug(f"Nenhum novo email encontrado em {len(self.connections)} conexões.")
-        else:
+        if new_emails:
             logger.info(f"Total de novos emails encontrados: {len(new_emails)}")
-            
+        
         return new_emails
         
     def process_emails(self):
@@ -368,15 +367,52 @@ def decode_email_header(header):
 
 def get_email_body(message):
     """Extrai o corpo do e-mail"""
+    body = ""
     if message.is_multipart():
+        # Primeiro tenta encontrar texto plano
         for part in message.walk():
-            if part.get_content_type() == "text/plain":
+            ctype = part.get_content_type()
+            cdispo = str(part.get('Content-Disposition'))
+
+            # Pula anexos
+            if 'attachment' in cdispo:
+                continue
+
+            if ctype == 'text/plain':
                 try:
-                    return part.get_payload(decode=True).decode('utf-8', errors='replace')
+                    body = part.get_payload(decode=True).decode('utf-8', errors='replace')
+                    break
                 except:
                     continue
+
+        # Se não encontrou texto plano, tenta HTML
+        if not body:
+            for part in message.walk():
+                ctype = part.get_content_type()
+                cdispo = str(part.get('Content-Disposition'))
+
+                # Pula anexos
+                if 'attachment' in cdispo:
+                    continue
+
+                if ctype == 'text/html':
+                    try:
+                        html = part.get_payload(decode=True).decode('utf-8', errors='replace')
+                        # Remove tags HTML de forma simples
+                        body = html.replace('<br>', '\n').replace('<br/>', '\n').replace('<p>', '\n').replace('</p>', '\n')
+                        import re
+                        body = re.sub('<[^<]+?>', '', body)
+                        body = body.replace('&nbsp;', ' ').replace('&lt;', '<').replace('&gt;', '>')
+                        break
+                    except:
+                        continue
     else:
+        # Mensagem não é multipart
         try:
-            return message.get_payload(decode=True).decode('utf-8', errors='replace')
+            body = message.get_payload(decode=True).decode('utf-8', errors='replace')
         except:
-            return message.get_payload()
+            body = str(message.get_payload())
+
+    # Limpa o texto
+    body = '\n'.join(line.strip() for line in body.splitlines() if line.strip())
+    return body

@@ -10,12 +10,12 @@ import sys
 from datetime import datetime
 from app.core.email_handler import EmailHandler, IMAPConnection
 
-# Configura o logger
+# Configura o logger com codificação UTF-8
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('email_diagnosis.log'),
+        logging.FileHandler('email_diagnosis.log', encoding='utf-8'),
         logging.StreamHandler(sys.stdout)
     ]
 )
@@ -24,14 +24,14 @@ logger = logging.getLogger('wegnots.diagnosis')
 def load_config():
     """Carrega configurações do arquivo config.ini"""
     config = configparser.ConfigParser()
-    config.read('config.ini')
-    
+    config.read('monitor/config.ini')  # Certifique-se de que o caminho está correto
+
     # Carrega informações globais do Telegram
-    telegram_config = {
-        'token': config['TELEGRAM']['token'],
-        'chat_id': config['TELEGRAM']['chat_id']
-    }
-    
+    telegram_config = {}
+    if 'TELEGRAM' in config:
+        telegram_config['token'] = config['TELEGRAM'].get('token', None)
+        telegram_config['chat_id'] = config['TELEGRAM'].get('chat_id', None)
+
     # Processa todas as seções de configuração IMAP
     imap_configs = {}
     for section in config.sections():
@@ -45,19 +45,19 @@ def load_config():
                     'password': config[section]['password'],
                     'is_active': config[section].get('is_active', 'True')
                 }
-                
+
                 # Adiciona configuração específica do Telegram se existir
                 if 'telegram_chat_id' in config[section]:
                     imap_config['telegram_chat_id'] = config[section]['telegram_chat_id']
                 if 'telegram_token' in config[section]:
                     imap_config['telegram_token'] = config[section]['telegram_token']
-                    
+
                 # Adiciona à lista de configurações
                 imap_configs[section] = imap_config
                 logger.info(f"Carregada configuração para {section} ({imap_config['username']})")
             except KeyError as e:
                 logger.error(f"Erro ao carregar configuração {section}: {e}")
-    
+
     return imap_configs, telegram_config
 
 def check_email_connection(connection):
