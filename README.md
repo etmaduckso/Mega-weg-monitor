@@ -8,126 +8,239 @@
 [![MongoDB](https://img.shields.io/badge/mongodb-5.0+-47A248.svg)](https://www.mongodb.com/)
 [![Docker](https://img.shields.io/badge/docker-supported-brightgreen.svg)](https://www.docker.com/)
 
-![Última Atualização](https://img.shields.io/badge/última_atualização-Abril_2025-informational)
+![Última Atualização](https://img.shields.io/badge/última_atualização-Maio_2025-informational)
 
 Sistema profissional para monitoramento de e-mails IMAP e envio de notificações via Telegram, desenvolvido com foco em robustez, escalabilidade e seguindo boas práticas de desenvolvimento.
 
 ---
 
-# WegNots System
+# Guia de Instalação e Configuração
 
-WegNots is a comprehensive email monitoring system with Telegram notifications and web-based administration.
+## Pré-requisitos do Sistema
 
-## System Components
+Antes de começar, certifique-se de que seu sistema atende aos seguintes requisitos:
 
-- **MongoDB Database**: Stores all application data
-- **Monitor Service**: Python-based email monitoring service that checks for new emails and sends alerts via Telegram
-- **Admin Panel**: Web interface for system management and configuration
+1. **Sistema Operacional**:
+   - Windows 10/11, Linux (Ubuntu 20.04+) ou macOS
+   - Mínimo de 4GB de RAM
+   - 10GB de espaço em disco
 
-## Quick Start Guide
+2. **Software Necessário**:
+   - Git
+   - Docker Desktop (Windows/Mac) ou Docker Engine + Docker Compose (Linux)
+   - Python 3.9 ou superior
 
-### Prerequisites
+## Passo a Passo para Instalação
 
-- **Docker** and **Docker Compose** must be installed
-- **Python 3.9+** is recommended for configuration utilities (optional)
+### 1. Preparação do Ambiente
 
-### Installation and Setup
+```bash
+# Windows
+# 1. Instale o Docker Desktop: https://www.docker.com/products/docker-desktop
+# 2. Instale o Python: https://www.python.org/downloads/
+# 3. Instale o Git: https://git-scm.com/download/win
 
-1. **Initialize the System**:
-   - Run `start.bat` to begin system initialization
-   - The script will check if Docker is running and guide you through initial setup
-   - You'll be prompted to configure Telegram notifications and email monitoring
+# Linux (Ubuntu/Debian)
+sudo apt update
+sudo apt install -y docker.io docker-compose python3 python3-pip git
+sudo systemctl start docker
+sudo systemctl enable docker
+```
 
-2. **Configure the System**:
-   - After initialization, run `configure.bat` to set up email accounts and Telegram
-   - You can add multiple email accounts to monitor
-   - Configure notification settings for each account
+### 2. Download do Projeto
 
-3. **Check System Status**:
-   - Use `health_check.bat` to verify all services are running correctly
-   - This will check database, API, and UI connectivity
+```bash
+# Clone o repositório
+git clone https://github.com/megasec/wegnots.git
+cd wegnots
 
-4. **Access the Admin Interface**:
-   - Open a web browser and navigate to `http://localhost:5173`
-   - Log in using your credentials
+# Em caso de download direto, descompacte o arquivo e navegue até a pasta
+```
 
-### System Management
+### 3. Configuração Inicial
 
-#### Starting the System
+```bash
+# Windows
+start.bat
 
-- Run `start.bat` to initialize all components
-- The script performs pre-flight checks to ensure Docker is running
-- System status is displayed after startup
+# Linux/Mac
+chmod +x start.sh
+./start.sh
+```
 
-#### Configuring the System
+### 4. Configuração do Telegram
 
-- Run `configure.bat` for an easy-to-use configuration menu
-- Options include:
-  - Configure Telegram settings
-  - Manage email accounts
-  - Test configuration
-  - Access the advanced configuration manager
+Antes de continuar, você precisará:
 
-#### Monitoring System Health
+1. Criar um bot no Telegram:
+   - Abra o Telegram e procure por "@BotFather"
+   - Digite /newbot e siga as instruções
+   - Guarde o token fornecido
 
-- Run `health_check.bat` to check if all services are running correctly
-- The script checks:
-  - Container status
-  - API accessibility
-  - Database connectivity
-  - UI availability
+2. Obter seu Chat ID:
+   - Procure por "@RawDataBot" no Telegram
+   - Inicie uma conversa e guarde o "Chat ID" fornecido
 
-#### Shutting Down the System
+### 5. Configuração do Sistema
 
-- Run `stop.bat` to gracefully shut down all components
-- This sends proper shutdown notifications and stops all containers
+```bash
+# Windows
+python monitor/config_manager.py
 
-## Deployment Across Different Servers
+# Linux/Mac
+python3 monitor/config_manager.py
+```
 
-WegNots can be deployed across different servers with these components communicating over the network:
+No menu interativo:
+1. Escolha a opção 5 (Configurar Telegram)
+2. Insira o token do bot e o chat ID obtidos anteriormente
+3. Escolha a opção 2 (Adicionar novo e-mail)
+4. Siga as instruções para adicionar suas contas de e-mail
 
-1. **Using a Shared Network**:
-   - Modify `docker-compose.yml` to use external networks
-   - Set explicit IP addresses or use a container orchestration platform
+### 6. Verificação da Instalação
 
-2. **Configuring Multiple Installations**:
-   - Each installation can monitor different email accounts
-   - Configure each instance to report to the same Telegram chat
+```bash
+# Windows
+health_check.bat
 
-3. **Database Synchronization**:
-   - Configure MongoDB for replication if needed across multiple deployments
+# Linux/Mac
+./health_check.sh
+```
 
-## Troubleshooting
+### 7. Acesso ao Sistema
 
-### Common Issues
+- Abra um navegador e acesse: `http://localhost:5173`
+- Faça login com as credenciais padrão:
+  - Usuário: admin
+  - Senha: admin123
+  - **Importante**: Altere a senha no primeiro acesso
 
-1. **Services not starting**:
-   - Check Docker status with `docker ps`
-   - Review logs with `docker-compose logs -f`
+## Instalação em Ambiente Cloud (Azure, AWS, GCP)
 
-2. **Configuration problems**:
-   - Verify config.ini in the monitor directory
-   - Run `configure.bat` to update settings
+### Azure VM
 
-3. **Email monitoring not working**:
-   - Ensure proper IMAP settings for your email provider
-   - Check if less secure apps are allowed (for Gmail)
-   - Verify network connectivity to IMAP servers
+1. Crie uma VM:
+   - Tamanho recomendado: B2s (2 vCPUs, 4GB RAM)
+   - SO: Ubuntu Server 20.04 LTS
+   - Abra as portas: 80, 443, 5173, 27017 (se necessário)
+
+2. Conecte-se à VM:
+   ```bash
+   ssh seu_usuario@ip_da_vm
+   ```
+
+3. Instale as dependências:
+   ```bash
+   sudo apt update
+   sudo apt install -y docker.io docker-compose python3 python3-pip git
+   sudo systemctl start docker
+   sudo systemctl enable docker
+   ```
+
+4. Siga os passos 2-7 da instalação normal
+
+### Considerações para Ambiente Produtivo
+
+1. **Segurança**:
+   - Use HTTPS para o painel admin
+   - Configure um firewall
+   - Use senhas fortes
+   - Mantenha o sistema atualizado
+
+2. **Backup**:
+   ```bash
+   # Backup do MongoDB
+   docker-compose exec mongodb mongodump --out /backup
+   
+   # Backup das configurações
+   cp config.ini config.ini.backup
+   cp monitor/config.ini monitor/config.ini.backup
+   ```
+
+3. **Monitoramento**:
+   - Configure alertas de uso de recursos
+   - Monitore os logs regularmente
+   - Verifique o status do sistema diariamente
+
+## Componentes do Sistema
+
+- **MongoDB Database**: Armazena dados da aplicação
+- **Monitor Service**: Serviço Python que monitora emails
+- **Admin Panel**: Interface web para gerenciamento
+- **Configuration Manager**: Ferramenta interativa de configuração
+
+## Gerenciamento do Sistema
+
+### Iniciando o Sistema
+
+- Execute `start.bat` (Windows) ou `./start.sh` (Linux/Mac)
+- O script verifica se o Docker está rodando
+- Status do sistema é exibido após a inicialização
+
+### Configurando o Sistema
+
+- Use o gerenciador de configuração:
+  ```bash
+  python monitor/config_manager.py
+  ```
+- Opções disponíveis:
+  - Listar emails monitorados
+  - Adicionar/remover contas
+  - Editar configurações
+  - Configurar notificações
+  - Testar conexões
+
+### Monitoramento de Saúde
+
+- Execute `health_check.bat` ou `./health_check.sh`
+- Verifica:
+  - Status dos containers
+  - Acessibilidade da API
+  - Conectividade do banco
+  - Disponibilidade da UI
+
+### Desligando o Sistema
+
+- Execute `stop.bat` ou `./stop.sh`
+- Envia notificações de encerramento
+- Para todos os containers
+
+## Resolução de Problemas
+
+### Problemas Comuns
+
+1. **Serviços não iniciam**:
+   - Verifique o Docker: `docker ps`
+   - Veja os logs: `docker-compose logs -f`
+
+2. **Problemas de configuração**:
+   - Verifique config.ini
+   - Use o gerenciador de configuração
+   - Teste as notificações
+
+3. **Monitoramento de email não funciona**:
+   - Verifique configurações IMAP
+   - Para Gmail, permita apps menos seguros
+   - Teste conexão de rede
 
 ### Logs
 
-- Monitor logs are stored in `monitor/logs/`
-- Container logs can be viewed with:
-  - `docker-compose logs -f` (all services)
-  - `docker-compose logs -f monitor` (just monitor service)
-  - `docker-compose logs -f mongodb` (just database)
-  - `docker-compose logs -f admin` (just admin UI)
+- Logs do monitor: `monitor/logs/`
+- Logs de configuração: `logs/config_manager.log`
+- Logs dos containers:
+  ```bash
+  docker-compose logs -f
+  docker-compose logs -f monitor
+  docker-compose logs -f mongodb
+  docker-compose logs -f admin
+  ```
 
-## Security Considerations
+## Considerações de Segurança
 
-- Passwords are stored in config.ini - ensure this file has appropriate permissions
-- Consider using environment variables for sensitive information in production
-- The MongoDB database is accessible only within the Docker network by default
+- Proteja o arquivo config.ini
+- Use variáveis de ambiente em produção
+- MongoDB acessível apenas na rede Docker
+- Configure tokens e chat IDs específicos por email
 
 ---
 
