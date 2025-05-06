@@ -1,28 +1,60 @@
 version: '3.8'
 
 services:
+  mongodb:
+    image: mongo:4.4
+    restart: unless-stopped
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - wegnots-network
+
   monitor:
     build: .
     environment:
       - PYTHONUNBUFFERED=1
-      - IMAP_SERVER=${IMAP_SERVER:-br188.hostgator.com.br}
-      - IMAP_PORT=${IMAP_PORT:-993}
-      - IMAP_USER=${IMAP_USER:-sooretama@megasec.com.br}
-      - IMAP_PASSWORD=${IMAP_PASSWORD:-Megasec@2025}
-      - TELEGRAM_TOKEN=${TELEGRAM_TOKEN:-8002419840:AAFL_Wu0aZ_NOGS9LOo9a9HxRbdGMxxv6-E}
-      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-1395823978}
+      # MongoDB
+      - MONGODB_URI=mongodb://mongodb:27017/
+      # Credenciais do arquivo .env
+      - IMAP_SERVER=${IMAP_SERVER}
+      - IMAP_PORT=${IMAP_PORT}
+      - IMAP_USER=${IMAP_USER}
+      - IMAP_PASSWORD=${IMAP_PASSWORD}
+      - TELEGRAM_TOKEN=${TELEGRAM_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      # Configurações de Email
+      - MONITORED_EMAILS=${MONITORED_EMAILS}
+      # Configurações adicionais
+      - CHECK_INTERVAL=${CHECK_INTERVAL:-60}
+      - RECONNECT_ATTEMPTS=${RECONNECT_ATTEMPTS:-5}
+      - RECONNECT_DELAY=${RECONNECT_DELAY:-30}
+      - RECONNECT_BACKOFF_FACTOR=${RECONNECT_BACKOFF_FACTOR:-1.5}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
     restart: unless-stopped
+    depends_on:
+      - mongodb
     volumes:
-      - ./logs:/app/logs:rw  # Mantendo logs para monitoramento
+      - type: bind
+        source: ./logs
+        target: /app/logs
+      - type: bind
+        source: ./config.ini
+        target: /app/config.ini
+        read_only: true
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
+        labels: "monitor"
+        tag: "monitor-service"
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - wegnots-network
 
 volumes:
   mongodb_data:
-  mongodb_config:
 
 networks:
   wegnots-network:

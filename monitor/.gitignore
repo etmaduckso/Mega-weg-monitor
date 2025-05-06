@@ -1,5 +1,18 @@
-# Ignorar arquivos de configuração sensíveis
+# Arquivos de Configuração e Credenciais
 .env
+*.env
+config.ini
+*.ini
+*.conf
+*.config
+*.cfg
+
+# Arquivos de Log e Dados Sensíveis
+*.log
+logs/
+data/
+uploads/
+temp_backup/
 
 # Python
 __pycache__/
@@ -13,9 +26,6 @@ ENV/
 # IDEs
 .vscode/
 .idea/
-
-# Logs
-*.log
 
 # Arquivos de sistema
 .DS_Store

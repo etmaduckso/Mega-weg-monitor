@@ -1,107 +1,122 @@
 import os
-import logging
-import configparser
-from typing import Dict, Tuple
+import json
+from pathlib import Path
+from typing import Dict, Any
+from dotenv import load_dotenv
 
-def setup_logging():
-    """Configura o logger principal do sistema"""
-    logger = logging.getLogger('wegnots')
-    logger.setLevel(logging.INFO)
-    
-    # Handler para console
-    console = logging.StreamHandler()
-    console.setLevel(logging.INFO)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    console.setFormatter(formatter)
-    logger.addHandler(console)
-    
-    # Handler para arquivo
-    file_handler = logging.FileHandler('logs/wegnots.log')
-    file_handler.setLevel(logging.INFO)
-    file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
-    
-    return logger
+# Carrega variáveis de ambiente do arquivo .env
+load_dotenv()
 
-def load_config() -> Dict:
-    """Carrega configurações do arquivo config.ini"""
-    config = configparser.ConfigParser()
-    config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'config.ini')
-    
-    if not os.path.exists(config_path):
-        raise FileNotFoundError(f"Arquivo de configuração não encontrado: {config_path}")
-    
-    config.read(config_path)
-    
-    # Configurações IMAP primário
-    imap_primary = {
-        'server': config.get('IMAP_PRIMARY', 'server'),
-        'port': config.getint('IMAP_PRIMARY', 'port'),
-        'username': config.get('IMAP_PRIMARY', 'username'),
-        'password': config.get('IMAP_PRIMARY', 'password'),
-        'is_active': config.getboolean('IMAP_PRIMARY', 'is_active'),
-        'check_interval': 60,
-        'reconnect_attempts': 5,
-        'reconnect_delay': 30,
-        'reconnect_backoff_factor': 1.5
-    }
-    
-    # Configurações IMAP secundário
-    imap_secondary = {
-        'server': config.get('IMAP_SECONDARY', 'server'),
-        'port': config.getint('IMAP_SECONDARY', 'port'),
-        'username': config.get('IMAP_SECONDARY', 'username'),
-        'password': config.get('IMAP_SECONDARY', 'password'),
-        'is_active': config.getboolean('IMAP_SECONDARY', 'is_active'),
-        'check_interval': 60,
-        'reconnect_attempts': 5,
-        'reconnect_delay': 30,
-        'reconnect_backoff_factor': 1.5
-    }
-    
-    # Configurações Telegram
-    telegram = {
-        'token': config.get('TELEGRAM', 'token'),
-        'chat_id': config.get('TELEGRAM', 'chat_id')
-    }
-    
-    return {
-        'imap_primary': imap_primary,
-        'imap_secondary': imap_secondary,
-        'telegram': telegram
-    }
+# Configurações Base
+BASE_DIR = Path(__file__).resolve().parent.parent
 
-def validate_config(config: Dict) -> Tuple[bool, str]:
-    """Valida as configurações carregadas"""
-    # Verifica se pelo menos um servidor IMAP está ativo
-    if not (config['imap_primary']['is_active'] or config['imap_secondary']['is_active']):
-        return False, "Nenhum servidor IMAP ativo configurado"
-    
-    # Valida configurações de cada servidor IMAP ativo
-    for imap_config in [config['imap_primary'], config['imap_secondary']]:
-        if imap_config['is_active']:
-            if not imap_config['server']:
-                return False, "Servidor IMAP não configurado"
-            if not imap_config['username']:
-                return False, "Usuário IMAP não configurado"
-            if not imap_config['password']:
-                return False, "Senha IMAP não configurada"
-    
-    # Valida configurações do Telegram
-    if not config['telegram']['token']:
-        return False, "Token do Telegram não configurado"
-    if not config['telegram']['chat_id']:
-        return False, "Chat ID do Telegram não configurado"
-    
-    return True, "Configurações válidas"
+class ConfigurationError(Exception):
+    """Exceção para erros de configuração."""
+    pass
 
-# Carrega configurações ao importar o módulo
+def get_env_var(var_name: str, default: Any = None, required: bool = True) -> Any:
+    """
+    Recupera variável de ambiente com validação.
+    
+    Args:
+        var_name: Nome da variável de ambiente
+        default: Valor padrão caso não encontrada
+        required: Se True, levanta exceção quando não encontrada
+    """
+    value = os.getenv(var_name, default)
+    if value is None and required:
+        raise ConfigurationError(f"Variável de ambiente obrigatória não encontrada: {var_name}")
+    return value
+
+def parse_json_env(var_name: str, default: Dict = None) -> Dict:
+    """
+    Parse JSON string from environment variable.
+    
+    Args:
+        var_name: Nome da variável de ambiente
+        default: Valor padrão caso parsing falhe
+    """
+    try:
+        value = get_env_var(var_name, required=False)
+        return json.loads(value) if value else (default or {})
+    except json.JSONDecodeError:
+        if default is not None:
+            return default
+        raise ConfigurationError(f"Erro ao fazer parse do JSON em {var_name}")
+
+# Configurações IMAP
+IMAP_CONFIG = {
+    'server': get_env_var('IMAP_SERVER'),
+    'port': int(get_env_var('IMAP_PORT', 993)),
+    'username': get_env_var('IMAP_USER'),
+    'password': get_env_var('IMAP_PASSWORD'),
+}
+
+# Configurações Telegram
+TELEGRAM_CONFIG = {
+    'token': get_env_var('TELEGRAM_TOKEN'),
+    'chat_id': get_env_var('TELEGRAM_CHAT_ID'),
+}
+
+# Configurações de Monitoramento
+MONITOR_CONFIG = {
+    'check_interval': int(get_env_var('CHECK_INTERVAL', 60)),
+    'reconnect_attempts': int(get_env_var('RECONNECT_ATTEMPTS', 5)),
+    'reconnect_delay': int(get_env_var('RECONNECT_DELAY', 30)),
+    'reconnect_backoff_factor': float(get_env_var('RECONNECT_BACKOFF_FACTOR', 1.5)),
+}
+
+# Configurações de Logging
+LOG_CONFIG = {
+    'level': get_env_var('LOG_LEVEL', 'INFO'),
+    'format': get_env_var('LOG_FORMAT', 
+                         '%(asctime)s - %(name)s - %(levelname)s - %(message)s'),
+    'max_size': int(get_env_var('MAX_LOG_SIZE', 10485760)),  # 10MB
+    'backup_count': int(get_env_var('LOG_BACKUP_COUNT', 3)),
+}
+
+# Configurações de Notificação
+NOTIFICATION_DESTINATIONS = parse_json_env('NOTIFICATION_DESTINATIONS', {})
+
+def validate_config() -> None:
+    """
+    Valida todas as configurações necessárias.
+    Levanta ConfigurationError se encontrar problemas.
+    """
+    # Valida configurações IMAP
+    if not all([
+        IMAP_CONFIG['server'],
+        IMAP_CONFIG['username'],
+        IMAP_CONFIG['password']
+    ]):
+        raise ConfigurationError("Configurações IMAP incompletas")
+
+    # Valida configurações Telegram
+    if not all([
+        TELEGRAM_CONFIG['token'],
+        TELEGRAM_CONFIG['chat_id']
+    ]):
+        raise ConfigurationError("Configurações Telegram incompletas")
+
+    # Valida valores numéricos
+    if not all([
+        isinstance(MONITOR_CONFIG['check_interval'], int),
+        isinstance(MONITOR_CONFIG['reconnect_attempts'], int),
+        isinstance(MONITOR_CONFIG['reconnect_delay'], int),
+        isinstance(MONITOR_CONFIG['reconnect_backoff_factor'], float)
+    ]):
+        raise ConfigurationError("Valores inválidos nas configurações de monitoramento")
+
+    # Valida configurações de log
+    if not all([
+        isinstance(LOG_CONFIG['max_size'], int),
+        isinstance(LOG_CONFIG['backup_count'], int)
+    ]):
+        raise ConfigurationError("Valores inválidos nas configurações de log")
+
+# Executa validação na importação
 try:
-    CONFIG = load_config()
-    IMAP_PRIMARY_CONFIG = CONFIG['imap_primary']
-    IMAP_SECONDARY_CONFIG = CONFIG['imap_secondary']
-    TELEGRAM_CONFIG = CONFIG['telegram']
-except Exception as e:
-    logger = setup_logging()
-    logger.critical(f"Erro ao carregar configurações: {e}")
+    validate_config()
+except ConfigurationError as e:
+    print(f"ERRO DE CONFIGURAÇÃO: {e}")
     raise
